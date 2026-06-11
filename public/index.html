@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Europass Job Matcher</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --border: #334155; --text: #e2e8f0;
+    --muted: #94a3b8; --accent: #38bdf8; --high: #4ade80; --med: #facc15; --low: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  input[type=file] { color: var(--muted); }
+  button {
+    background: var(--accent); color: #082f49; border: 0; border-radius: 8px;
+    padding: 10px 22px; font-weight: 700; font-size: 15px; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: wait; }
+  label.toggle { color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .error { color: var(--low); margin-top: 12px; }
+  .profile-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: #0c4a6e; color: #bae6fd; border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+  .status { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .status .ok { color: var(--high); } .status .err { color: var(--low); } .status .skip { color: var(--med); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+  th .arrow { font-size: 11px; }
+  tr:hover td { background: #24344d; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .chance { font-weight: 700; }
+  .High { color: var(--high); } .Medium { color: var(--med); } .Low { color: var(--low); }
+  .bar { height: 5px; border-radius: 3px; background: var(--border); margin-top: 4px; width: 90px; overflow: hidden; }
+  .bar > div { height: 100%; }
+  .skills { color: var(--muted); font-size: 12.5px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
+  .toolbar button { padding: 7px 14px; font-size: 13px; background: var(--border); color: var(--text); }
+  .hidden { display: none; }
+  .spinner { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Europass Job Matcher</h1>
+  <p class="sub">Upload your Europass CV (XML, JSON, or official PDF — max 4 MB). It is parsed in-process and matched against vacancies from European job platforms — EURES (all EU/EEA national services), Arbeitnow, Remotive, and optionally Adzuna, Jooble and Reed.</p>
+
+  <div class="panel">
+    <form id="form" class="row">
+      <input type="file" id="cv" name="cv" accept=".xml,.json,.pdf" required />
+      <button type="submit" id="go">Find matching jobs</button>
+      <label class="toggle"><input type="checkbox" id="demo" /> Demo mode (offline sample jobs)</label>
+      <span class="spinner hidden" id="spinner">Searching European job platforms…</span>
+    </form>
+    <div class="error hidden" id="error"></div>
+  </div>
+
+  <div class="panel hidden" id="profilePanel">
+    <strong id="profileName"></strong> <span id="profileMeta" style="color:var(--muted)"></span>
+    <div class="profile-chips" id="profileSkills"></div>
+    <div class="status" id="providerStatus"></div>
+  </div>
+
+  <div class="panel hidden" id="resultsPanel">
+    <div class="toolbar">
+      <strong id="resultCount"></strong>
+      <button id="exportCsv" type="button">Export CSV</button>
+    </div>
+    <div style="overflow-x:auto; max-height: 70vh; overflow-y: auto;">
+      <table id="results">
+        <thead><tr id="headRow"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // matches the server / Vercel limit
+
+const COLUMNS = [
+  { key: 'hiringChance', label: 'Hiring chance', sort: (j) => j.match.hiringChance },
+  { key: 'title',        label: 'Job title',     sort: (j) => j.title.toLowerCase() },
+  { key: 'company',      label: 'Company',       sort: (j) => (j.company || '').toLowerCase() },
+  { key: 'location',     label: 'Location',      sort: (j) => (j.location || '').toLowerCase() },
+  { key: 'salary',       label: 'Salary',        sort: (j) => j.salary || '' },
+  { key: 'postedDate',   label: 'Posted',        sort: (j) => j.postedDate || '' },
+  { key: 'source',       label: 'Source',        sort: (j) => j.source },
+  { key: 'matchedSkills',label: 'Matched skills',sort: (j) => j.match.matchedSkills.length },
+];
+let jobs = [];
+let sortKey = 'hiringChance';
+let sortDir = -1;
+
+const $ = (id) => document.getElementById(id);
+
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const file = $('cv').files[0];
+  if (!file) return;
+  $('error').classList.add('hidden');
+  if (file.size > MAX_UPLOAD_BYTES) {
+    $('error').textContent = 'CV file is larger than 4 MB. Please export a smaller PDF or upload the XML/JSON version.';
+    $('error').classList.remove('hidden');
+    return;
+  }
+  $('go').disabled = true;
+  $('spinner').classList.remove('hidden');
+  try {
+    const fd = new FormData();
+    fd.append('cv', file);
+    if ($('demo').checked) fd.append('demo', '1');
+    const res = await fetch('/api/match', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    renderProfile(data);
+    jobs = data.jobs;
+    renderTable();
+  } catch (err) {
+    $('error').textContent = err.message;
+    $('error').classList.remove('hidden');
+  } finally {
+    $('go').disabled = false;
+    $('spinner').classList.add('hidden');
+  }
+});
+
+function renderProfile(data) {
+  const p = data.profile;
+  $('profilePanel').classList.remove('hidden');
+  $('profileName').textContent = p.name || 'CV parsed';
+  $('profileMeta').textContent = [
+    p.headline,
+    p.location.city || p.location.country ? [p.location.city, p.location.country].filter(Boolean).join(', ') : '',
+    p.totalExperienceYears ? p.totalExperienceYears + ' yrs experience (' + p.seniority + ')' : '',
+    p.languages.map((l) => l.name + (l.level ? ' ' + l.level : '')).join(', '),
+  ].filter(Boolean).join(' · ');
+  $('profileSkills').innerHTML = p.skills.map((s) => '<span class="chip">' + esc(s) + '</span>').join('');
+  $('providerStatus').innerHTML = 'Sources: ' + data.providerStatus.map((s) => {
+    const cls = s.status === 'ok' ? 'ok' : s.status === 'error' ? 'err' : 'skip';
+    const note = s.status === 'ok' ? s.count + ' jobs' : s.status === 'skipped' ? 'no API key' : 'unreachable';
+    return '<span class="' + cls + '" title="' + esc(s.detail) + '">' + esc(s.name) + ' (' + note + ')</span>';
+  }).join(' · ');
+}
+
+function renderTable() {
+  $('resultsPanel').classList.remove('hidden');
+  $('resultCount').textContent = jobs.length + ' matching jobs, ranked by estimated hiring chance';
+  $('headRow').innerHTML = COLUMNS.map((c) =>
+    '<th data-key="' + c.key + '">' + c.label +
+    (sortKey === c.key ? ' <span class="arrow">' + (sortDir > 0 ? '▲' : '▼') + '</span>' : '') + '</th>'
+  ).join('');
+  for (const th of $('headRow').children) {
+    th.onclick = () => {
+      const key = th.dataset.key;
+      sortDir = key === sortKey ? -sortDir : key === 'hiringChance' ? -1 : 1;
+      sortKey = key;
+      renderTable();
+    };
+  }
+  const col = COLUMNS.find((c) => c.key === sortKey);
+  const sorted = [...jobs].sort((a, b) => {
+    const va = col.sort(a), vb = col.sort(b);
+    return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
+  });
+  $('body').innerHTML = sorted.map((j) => {
+    const m = j.match;
+    const color = m.label === 'High' ? 'var(--high)' : m.label === 'Medium' ? 'var(--med)' : 'var(--low)';
+    return '<tr>' +
+      '<td><span class="chance ' + m.label + '">' + m.hiringChance + '% · ' + m.label + '</span>' +
+        '<div class="bar"><div style="width:' + m.hiringChance + '%;background:' + color + '"></div></div></td>' +
+      '<td>' + (j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">' + esc(j.title) + '</a>' : esc(j.title)) + '</td>' +
+      '<td>' + esc(j.company) + '</td>' +
+      '<td>' + esc(j.location) + (j.remote ? ' · Remote' : '') + '</td>' +
+      '<td>' + esc(j.salary || '—') + '</td>' +
+      '<td>' + esc(j.postedDate || '—') + '</td>' +
+      '<td>' + esc(j.source) + '</td>' +
+      '<td class="skills">' + esc(m.matchedSkills.join(', ') || '—') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+$('exportCsv').addEventListener('click', () => {
+  const header = ['Hiring chance %', 'Label', 'Job title', 'Company', 'Location', 'Remote', 'Salary', 'Posted', 'Source', 'Matched skills', 'URL'];
+  const rows = jobs.map((j) => [
+    j.match.hiringChance, j.match.label, j.title, j.company, j.location,
+    j.remote ? 'yes' : 'no', j.salary, j.postedDate, j.source,
+    j.match.matchedSkills.join('; '), j.url,
+  ]);
+  const csv = [header, ...rows]
+    .map((r) => r.map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(','))
+    .join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'job-matches.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+</script>
+</body>
+</html>

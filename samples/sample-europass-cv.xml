@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SkillsPassport xmlns="http://europass.cedefop.europa.eu/Europass/V3.3"
+                locale="en">
+  <DocumentInfo>
+    <DocumentType>ECV</DocumentType>
+    <CreationDate>2024-09-15T10:00:00.000Z</CreationDate>
+    <LastUpdateDate>2026-01-20T09:30:00.000Z</LastUpdateDate>
+    <XSDVersion>V3.3</XSDVersion>
+    <Generator>EWA</Generator>
+  </DocumentInfo>
+  <LearnerInfo>
+    <Identification>
+      <PersonName>
+        <FirstName>Ana</FirstName>
+        <Surname>Popescu</Surname>
+      </PersonName>
+      <ContactInfo>
+        <Address>
+          <Contact>
+            <AddressLine>Strada Exemplu 10</AddressLine>
+            <PostalCode>400001</PostalCode>
+            <Municipality>Cluj-Napoca</Municipality>
+            <Country>
+              <Code>RO</Code>
+              <Label>Romania</Label>
+            </Country>
+          </Contact>
+        </Address>
+        <Email>
+          <Contact>ana.popescu@example.com</Contact>
+        </Email>
+        <TelephoneList>
+          <Telephone>
+            <Contact>+40 700 000 000</Contact>
+            <Use><Code>mobile</Code><Label>Mobile</Label></Use>
+          </Telephone>
+        </TelephoneList>
+      </ContactInfo>
+      <Demographics>
+        <Birthdate year="1992" month="--04" day="---12"/>
+        <Nationality><Code>RO</Code><Label>Romanian</Label></Nationality>
+      </Demographics>
+    </Identification>
+    <Headline>
+      <Type><Code>preferred_job</Code><Label>PREFERRED JOB</Label></Type>
+      <Description><Label>Full Stack Software Developer</Label></Description>
+    </Headline>
+    <WorkExperienceList>
+      <WorkExperience>
+        <Period>
+          <From year="2021" month="--03" day="---01"/>
+          <Current>true</Current>
+        </Period>
+        <Position><Label>Senior Full Stack Developer</Label></Position>
+        <Activities>&lt;p&gt;Designing and building web applications with React,
+        TypeScript and Node.js. REST and GraphQL APIs backed by PostgreSQL and
+        Redis. Deployment on AWS with Docker, Kubernetes and CI/CD pipelines
+        (GitHub Actions). Mentoring two junior developers in an agile Scrum
+        team.&lt;/p&gt;</Activities>
+        <Employer>
+          <Name>Softvision Labs SRL</Name>
+          <ContactInfo>
+            <Address>
+              <Contact>
+                <Municipality>Cluj-Napoca</Municipality>
+                <Country><Code>RO</Code><Label>Romania</Label></Country>
+              </Contact>
+            </Address>
+          </ContactInfo>
+          <Sector><Code>J</Code><Label>Information and communication</Label></Sector>
+        </Employer>
+      </WorkExperience>
+      <WorkExperience>
+        <Period>
+          <From year="2017" month="--06" day="---01"/>
+          <To year="2021" month="--02" day="---28"/>
+        </Period>
+        <Position><Label>Web Developer</Label></Position>
+        <Activities>&lt;p&gt;Developed e-commerce frontends with JavaScript, Vue
+        and CSS; built backend services in Python (Django) with MySQL.
+        Introduced unit testing and Git-based code review.&lt;/p&gt;</Activities>
+        <Employer>
+          <Name>WebCraft Studio</Name>
+        </Employer>
+      </WorkExperience>
+    </WorkExperienceList>
+    <EducationList>
+      <Education>
+        <Period>
+          <From year="2011" month="--10" day="---01"/>
+          <To year="2015" month="--07" day="---01"/>
+        </Period>
+        <Title>BSc Computer Science</Title>
+        <Organisation>
+          <Name>Babeș-Bolyai University</Name>
+          <ContactInfo>
+            <Address>
+              <Contact>
+                <Municipality>Cluj-Napoca</Municipality>
+                <Country><Code>RO</Code><Label>Romania</Label></Country>
+              </Contact>
+            </Address>
+          </ContactInfo>
+        </Organisation>
+      </Education>
+    </EducationList>
+    <Skills>
+      <Linguistic>
+        <MotherTongueList>
+          <MotherTongue>
+            <Description><Code>ro</Code><Label>Romanian</Label></Description>
+          </MotherTongue>
+        </MotherTongueList>
+        <ForeignLanguageList>
+          <ForeignLanguage>
+            <Description><Code>en</Code><Label>English</Label></Description>
+            <ProficiencyLevel>
+              <Listening>C1</Listening>
+              <Reading>C1</Reading>
+              <SpokenInteraction>C1</SpokenInteraction>
+              <SpokenProduction>C1</SpokenProduction>
+              <Writing>C1</Writing>
+            </ProficiencyLevel>
+          </ForeignLanguage>
+          <ForeignLanguage>
+            <Description><Code>de</Code><Label>German</Label></Description>
+            <ProficiencyLevel>
+              <Listening>B1</Listening>
+              <Reading>B1</Reading>
+              <SpokenInteraction>A2</SpokenInteraction>
+              <SpokenProduction>A2</SpokenProduction>
+              <Writing>A2</Writing>
+            </ProficiencyLevel>
+          </ForeignLanguage>
+        </ForeignLanguageList>
+      </Linguistic>
+      <Communication>
+        <Description>Clear written and spoken communication honed through
+        client demos and sprint reviews; comfortable presenting technical
+        topics to non-technical stakeholders.</Description>
+      </Communication>
+      <Organisational>
+        <Description>Team management of small developer squads; project
+        management with Jira and Confluence; agile/Scrum ceremonies
+        facilitation.</Description>
+      </Organisational>
+      <Computer>
+        <Description>JavaScript, TypeScript, React, Vue, Node.js, Express,
+        Python, Django, PostgreSQL, MySQL, Redis, MongoDB, Docker, Kubernetes,
+        AWS, Git, CI/CD, GitHub Actions, REST, GraphQL, unit testing, Cypress,
+        Linux.</Description>
+      </Computer>
+      <Driving>
+        <Description><Licence>B</Licence></Description>
+      </Driving>
+    </Skills>
+  </LearnerInfo>
+</SkillsPassport>

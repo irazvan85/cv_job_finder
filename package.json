@@ -1,0 +1,21 @@
+{
+  "name": "europass-job-matcher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Upload a Europass CV and find matching jobs across European job platforms, ranked by estimated hiring chance.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "match": "node src/cli.js",
+    "test": "node test/run-tests.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "fast-xml-parser": "^4.5.0",
+    "multer": "^2.0.1",
+    "pdf-parse": "^1.1.1"
+  }
+}
