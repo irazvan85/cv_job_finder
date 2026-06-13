@@ -7,10 +7,33 @@ European job platforms**, each with an **estimated hiring chance**.
 CV (Europass XML / JSON / PDF)
         │ parse → profile (skills, titles, languages, location, seniority)
         ▼
+Refine (optional): tweak search keywords, skills, target countries
+        ▼
 Fan-out search across European job platforms (parallel, fault-tolerant)
         ▼
-Score every vacancy against the profile → ranked table + CSV export
+Score every vacancy against the profile → ranked table
+        ▼
+Filter on the spot (chance, level, country, recency, remote, starred) + CSV export
 ```
+
+## Refine your search
+
+After the CV is parsed, the profile is shown so you can **tune the search before
+any job board is queried**:
+
+- **Search keywords** — defaults to your most recent job title; override it to
+  target a different role or set of terms.
+- **Skills** — the detected skills drive the match score; remove ones that don't
+  fit and add any the parser missed.
+- **Target countries** — leave empty to search your home market plus the rest of
+  Europe, or pick specific countries (applied to EURES and, where supported,
+  Adzuna).
+
+Once results are in, an instant **filter bar** narrows them without re-querying:
+minimum hiring chance, match level (High/Medium/Low), country, "posted within N
+days", **remote only**, and **starred only**. Star (★) any job to bookmark it;
+bookmarks persist in your browser's local storage. CSV export reflects whatever
+is currently filtered into view.
 
 ## Supported CV formats
 
@@ -43,7 +66,7 @@ each 0–1, weighted into a percentage (clamped to 2–97%):
 
 | Signal | Weight | What it measures |
 | ------ | ------ | ---------------- |
-| Skills | 45% | How many of the skills mentioned in the job ad appear in the CV |
+| Skills | 45% | How many of the skills mentioned in the job ad appear in the CV (common aliases like *K8s → Kubernetes* are matched too) |
 | Title | 25% | Word overlap between your job titles and the ad title |
 | Location | 15% | Same city > same country > elsewhere in Europe; remote = full score |
 | Language | 10% | CV languages vs languages the ad requires |
@@ -70,7 +93,7 @@ The project is laid out for Vercel's zero-config Node runtime:
 
 - `api/index.js` — single serverless function exporting the Express app.
   `vercel.json` rewrites every `/api/*` request to it, and Express routes
-  `/api/match` and `/api/providers` from there.
+  `/api/parse`, `/api/search`, `/api/match` and `/api/providers` from there.
 - `public/` — served as static files from Vercel's CDN (no framework, no
   build step; with no build output Vercel serves `public/` automatically).
 - `server.js` — local development only (`npm start`); it is never invoked
@@ -113,11 +136,26 @@ Prints the ranked table to the terminal and writes `job-matches.csv`.
 
 ### API
 
+One-shot (parse + search in a single call):
+
 ```bash
 curl -X POST -F cv=@your-cv.pdf https://<your-deployment>.vercel.app/api/match
 ```
 
-Returns `{ profile, jobs (ranked), providerStatus }`.
+Two-step (lets you edit the profile between parse and search):
+
+```bash
+# 1. Parse a CV into a profile
+curl -X POST -F cv=@your-cv.pdf https://<host>/api/parse        # → { profile }
+
+# 2. Search with a (possibly edited) profile + optional filters
+curl -X POST -H 'content-type: application/json' \
+     -d '{"profile": <profile>, "filters": {"countries": ["de","nl"]}}' \
+     https://<host>/api/search                                   # → { profile, jobs, providerStatus }
+```
+
+All search endpoints return `{ profile, jobs (ranked), providerStatus }`. Set
+`searchKeywords` on the profile to override the search term.
 
 ## Tests
 
@@ -125,9 +163,10 @@ Returns `{ profile, jobs (ranked), providerStatus }`.
 npm test
 ```
 
-Covers XML/JSON/text parsing, skill extraction, scoring behaviour, the
-end-to-end demo pipeline, and a smoke test of the Vercel function entrypoint
-(`api/index.js`) over real HTTP, including the 413 oversize-upload path.
+Covers XML/JSON/text parsing, skill extraction and aliases, keyword/market
+helpers, scoring behaviour, the end-to-end demo pipeline, and a smoke test of
+the Vercel function entrypoint (`api/index.js`) over real HTTP — including the
+`/api/parse` + `/api/search` two-step flow and the 413 oversize-upload path.
 
 ## Privacy
 

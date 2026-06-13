@@ -56,19 +56,55 @@ const SKILL_DICTIONARY = [
   '3d modelling', 'blender', 'animation', 'photography',
 ];
 
+// Common aliases and abbreviations mapped to their canonical skill so a
+// CV that says "K8s" still matches a job asking for "Kubernetes". Kept
+// high-precision (each alias maps unambiguously to one skill) so matches
+// stay explainable.
+const SKILL_ALIASES = {
+  k8s: 'kubernetes',
+  k8: 'kubernetes',
+  golang: 'go',
+  postgres: 'postgresql',
+  reactjs: 'react',
+  'react.js': 'react',
+  vuejs: 'vue',
+  'vue.js': 'vue',
+  nextjs: 'next.js',
+  nodejs: 'node.js',
+  node: 'node.js',
+  dotnet: '.net',
+  '.net core': '.net',
+  cicd: 'ci/cd',
+  'ci-cd': 'ci/cd',
+  sklearn: 'scikit-learn',
+  'gh actions': 'github actions',
+  'g cloud': 'gcp',
+  'google cloud': 'gcp',
+  'amazon web services': 'aws',
+};
+
 // Longest phrases first so "react native" wins over "react".
 const SORTED_SKILLS = [...SKILL_DICTIONARY].sort((a, b) => b.length - a.length);
 
+const escapeForRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const SKILL_PATTERNS = SORTED_SKILLS.map((skill) => ({
   skill,
-  pattern: new RegExp(
-    `(?<![\\w#+.])${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w#+])`,
-    'i'
-  ),
+  pattern: new RegExp(`(?<![\\w#+.])${escapeForRegex(skill)}(?![\\w#+])`, 'i'),
 }));
 
+// Aliases are matched longest-first too, and resolve to the canonical skill.
+const ALIAS_PATTERNS = Object.entries(SKILL_ALIASES)
+  .sort((a, b) => b[0].length - a[0].length)
+  .map(([alias, skill]) => ({
+    skill,
+    pattern: new RegExp(`(?<![\\w#+.])${escapeForRegex(alias)}(?![\\w#+])`, 'i'),
+  }));
+
 /**
- * Extract known skills from free text.
+ * Extract known skills from free text. Canonical skill names and their
+ * common aliases (e.g. "k8s" → "kubernetes") both resolve to the canonical
+ * name so CV and job-ad wording can differ.
  * @param {string} text
  * @returns {string[]} normalised, de-duplicated skill names
  */
@@ -76,6 +112,9 @@ export function extractSkillTokens(text) {
   if (!text) return [];
   const found = new Set();
   for (const { skill, pattern } of SKILL_PATTERNS) {
+    if (pattern.test(text)) found.add(skill);
+  }
+  for (const { skill, pattern } of ALIAS_PATTERNS) {
     if (pattern.test(text)) found.add(skill);
   }
   return [...found];

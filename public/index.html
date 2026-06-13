@@ -13,19 +13,38 @@
   body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
   .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
   h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 12px; color: var(--text); }
   .sub { color: var(--muted); margin: 0 0 24px; }
   .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
   .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
   input[type=file] { color: var(--muted); }
+  input[type=text] {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; font-size: 14px;
+  }
+  select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 8px; font-size: 14px;
+  }
   button {
     background: var(--accent); color: #082f49; border: 0; border-radius: 8px;
     padding: 10px 22px; font-weight: 700; font-size: 15px; cursor: pointer;
   }
   button:disabled { opacity: .5; cursor: wait; }
+  button.secondary { background: var(--border); color: var(--text); }
   label.toggle { color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
   .error { color: var(--low); margin-top: 12px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field > span.lbl { color: var(--muted); font-size: 13px; }
+  .refine-grid { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .refine-grid .field { flex: 1 1 220px; }
   .profile-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .chip { background: #0c4a6e; color: #bae6fd; border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+  .chip { background: #0c4a6e; color: #bae6fd; border-radius: 999px; padding: 2px 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .chip button.x { background: transparent; color: #7dd3fc; border: 0; padding: 0; font-size: 14px; font-weight: 700; cursor: pointer; line-height: 1; }
+  .chip button.x:hover { color: #fff; }
+  .add-skill { display: flex; gap: 6px; margin-top: 10px; }
+  .add-skill input { flex: 0 1 220px; }
+  .add-skill button { padding: 8px 14px; font-size: 13px; }
   .status { font-size: 13px; color: var(--muted); margin-top: 10px; }
   .status .ok { color: var(--high); } .status .err { color: var(--low); } .status .skip { color: var(--med); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -40,8 +59,14 @@
   .bar { height: 5px; border-radius: 3px; background: var(--border); margin-top: 4px; width: 90px; overflow: hidden; }
   .bar > div { height: 100%; }
   .skills { color: var(--muted); font-size: 12.5px; }
+  .star { background: transparent; color: var(--muted); border: 0; padding: 0; font-size: 18px; cursor: pointer; line-height: 1; }
+  .star.on { color: var(--med); }
   .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px; }
   .toolbar button { padding: 7px 14px; font-size: 13px; background: var(--border); color: var(--text); }
+  .filterbar { display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: center; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+  .filterbar .field { gap: 4px; }
+  .filterbar .levels { display: flex; gap: 12px; }
+  .filterbar .range-val { color: var(--text); font-weight: 700; }
   .hidden { display: none; }
   .spinner { color: var(--muted); }
 </style>
@@ -49,25 +74,83 @@
 <body>
 <div class="wrap">
   <h1>Europass Job Matcher</h1>
-  <p class="sub">Upload your Europass CV (XML, JSON, or official PDF — max 4 MB). It is parsed in-process and matched against vacancies from European job platforms — EURES (all EU/EEA national services), Arbeitnow, Remotive, and optionally Adzuna, Jooble and Reed.</p>
+  <p class="sub">Upload your Europass CV (XML, JSON, or official PDF — max 4 MB). It is parsed in-process; you can then refine the search before it is matched against vacancies from European job platforms — EURES (all EU/EEA national services), Arbeitnow, Remotive, and optionally Adzuna, Jooble and Reed.</p>
 
   <div class="panel">
     <form id="form" class="row">
       <input type="file" id="cv" name="cv" accept=".xml,.json,.pdf" required />
-      <button type="submit" id="go">Find matching jobs</button>
+      <button type="submit" id="go">Analyse CV</button>
       <label class="toggle"><input type="checkbox" id="demo" /> Demo mode (offline sample jobs)</label>
-      <span class="spinner hidden" id="spinner">Searching European job platforms…</span>
+      <span class="spinner hidden" id="spinner">Working…</span>
     </form>
     <div class="error hidden" id="error"></div>
   </div>
 
   <div class="panel hidden" id="profilePanel">
     <strong id="profileName"></strong> <span id="profileMeta" style="color:var(--muted)"></span>
-    <div class="profile-chips" id="profileSkills"></div>
+
+    <div class="refine-grid" style="margin-top:18px;">
+      <div class="field">
+        <span class="lbl">Search keywords (role or terms to search for)</span>
+        <input type="text" id="kw" placeholder="e.g. Full Stack Developer" />
+      </div>
+      <div class="field">
+        <span class="lbl">Target countries (leave empty to search your home market + Europe)</span>
+        <select id="countries" multiple size="6"></select>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:18px;">
+      <span class="lbl">Skills used for matching (remove or add to tune your results)</span>
+      <div class="profile-chips" id="profileSkills"></div>
+    </div>
+    <div class="add-skill">
+      <input type="text" id="newSkill" placeholder="Add a skill…" />
+      <button type="button" id="addSkill" class="secondary">Add</button>
+    </div>
+
+    <div class="row" style="margin-top:18px;">
+      <button type="button" id="search">Find matching jobs</button>
+      <span class="spinner hidden" id="searchSpinner">Searching European job platforms…</span>
+    </div>
     <div class="status" id="providerStatus"></div>
   </div>
 
   <div class="panel hidden" id="resultsPanel">
+    <div class="filterbar">
+      <div class="field">
+        <span class="lbl">Min hiring chance: <span class="range-val" id="minChanceVal">0%</span></span>
+        <input type="range" id="minChance" min="0" max="100" step="5" value="0" />
+      </div>
+      <div class="field">
+        <span class="lbl">Match level</span>
+        <div class="levels">
+          <label class="toggle"><input type="checkbox" class="lvl" value="High" checked /> High</label>
+          <label class="toggle"><input type="checkbox" class="lvl" value="Medium" checked /> Medium</label>
+          <label class="toggle"><input type="checkbox" class="lvl" value="Low" checked /> Low</label>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Country</span>
+        <select id="countryFilter"><option value="">All</option></select>
+      </div>
+      <div class="field">
+        <span class="lbl">Posted within</span>
+        <select id="recency">
+          <option value="0">Any time</option>
+          <option value="7">Last 7 days</option>
+          <option value="14">Last 14 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="lbl">Show</span>
+        <div class="levels">
+          <label class="toggle"><input type="checkbox" id="remoteOnly" /> Remote only</label>
+          <label class="toggle"><input type="checkbox" id="starredOnly" /> Starred only</label>
+        </div>
+      </div>
+    </div>
     <div class="toolbar">
       <strong id="resultCount"></strong>
       <button id="exportCsv" type="button">Export CSV</button>
@@ -83,31 +166,48 @@
 
 <script>
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // matches the server / Vercel limit
+const STAR_KEY = 'jobmatcher.starred';
+
+// Countries selectable as search targets (code → label). EURES covers all of
+// these; Adzuna covers a subset and is queried where it overlaps.
+const COUNTRIES = {
+  at: 'Austria', be: 'Belgium', bg: 'Bulgaria', hr: 'Croatia', cy: 'Cyprus',
+  cz: 'Czechia', dk: 'Denmark', ee: 'Estonia', fi: 'Finland', fr: 'France',
+  de: 'Germany', gr: 'Greece', hu: 'Hungary', ie: 'Ireland', it: 'Italy',
+  lv: 'Latvia', lt: 'Lithuania', lu: 'Luxembourg', mt: 'Malta', nl: 'Netherlands',
+  no: 'Norway', pl: 'Poland', pt: 'Portugal', ro: 'Romania', sk: 'Slovakia',
+  si: 'Slovenia', es: 'Spain', se: 'Sweden', ch: 'Switzerland', is: 'Iceland',
+  gb: 'United Kingdom',
+};
 
 const COLUMNS = [
-  { key: 'hiringChance', label: 'Hiring chance', sort: (j) => j.match.hiringChance },
-  { key: 'title',        label: 'Job title',     sort: (j) => j.title.toLowerCase() },
-  { key: 'company',      label: 'Company',       sort: (j) => (j.company || '').toLowerCase() },
-  { key: 'location',     label: 'Location',      sort: (j) => (j.location || '').toLowerCase() },
-  { key: 'salary',       label: 'Salary',        sort: (j) => j.salary || '' },
-  { key: 'postedDate',   label: 'Posted',        sort: (j) => j.postedDate || '' },
-  { key: 'source',       label: 'Source',        sort: (j) => j.source },
-  { key: 'matchedSkills',label: 'Matched skills',sort: (j) => j.match.matchedSkills.length },
+  { key: 'star',         label: '★',              sort: (j) => (isStarred(j) ? 0 : 1) },
+  { key: 'hiringChance', label: 'Hiring chance',  sort: (j) => j.match.hiringChance },
+  { key: 'title',        label: 'Job title',      sort: (j) => j.title.toLowerCase() },
+  { key: 'company',      label: 'Company',        sort: (j) => (j.company || '').toLowerCase() },
+  { key: 'location',     label: 'Location',       sort: (j) => (j.location || '').toLowerCase() },
+  { key: 'salary',       label: 'Salary',         sort: (j) => j.salary || '' },
+  { key: 'postedDate',   label: 'Posted',         sort: (j) => j.postedDate || '' },
+  { key: 'source',       label: 'Source',         sort: (j) => j.source },
+  { key: 'matchedSkills',label: 'Matched skills', sort: (j) => j.match.matchedSkills.length },
 ];
-let jobs = [];
+
+let profile = null;       // editable profile from /api/parse
+let editSkills = [];       // working copy of profile.skills
+let jobs = [];             // ranked jobs from /api/search
 let sortKey = 'hiringChance';
 let sortDir = -1;
 
 const $ = (id) => document.getElementById(id);
 
+/* ---- Step 1: analyse the uploaded CV ----------------------------- */
 $('form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const file = $('cv').files[0];
   if (!file) return;
   $('error').classList.add('hidden');
   if (file.size > MAX_UPLOAD_BYTES) {
-    $('error').textContent = 'CV file is larger than 4 MB. Please export a smaller PDF or upload the XML/JSON version.';
-    $('error').classList.remove('hidden');
+    showError('CV file is larger than 4 MB. Please export a smaller PDF or upload the XML/JSON version.');
     return;
   }
   $('go').disabled = true;
@@ -115,24 +215,24 @@ $('form').addEventListener('submit', async (e) => {
   try {
     const fd = new FormData();
     fd.append('cv', file);
-    if ($('demo').checked) fd.append('demo', '1');
-    const res = await fetch('/api/match', { method: 'POST', body: fd });
+    const res = await fetch('/api/parse', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Request failed');
-    renderProfile(data);
-    jobs = data.jobs;
-    renderTable();
+    profile = data.profile;
+    editSkills = [...profile.skills];
+    $('resultsPanel').classList.add('hidden');
+    renderRefine();
   } catch (err) {
-    $('error').textContent = err.message;
-    $('error').classList.remove('hidden');
+    showError(err.message);
   } finally {
     $('go').disabled = false;
     $('spinner').classList.add('hidden');
   }
 });
 
-function renderProfile(data) {
-  const p = data.profile;
+/* ---- Refine panel ------------------------------------------------ */
+function renderRefine() {
+  const p = profile;
   $('profilePanel').classList.remove('hidden');
   $('profileName').textContent = p.name || 'CV parsed';
   $('profileMeta').textContent = [
@@ -141,7 +241,85 @@ function renderProfile(data) {
     p.totalExperienceYears ? p.totalExperienceYears + ' yrs experience (' + p.seniority + ')' : '',
     p.languages.map((l) => l.name + (l.level ? ' ' + l.level : '')).join(', '),
   ].filter(Boolean).join(' · ');
-  $('profileSkills').innerHTML = p.skills.map((s) => '<span class="chip">' + esc(s) + '</span>').join('');
+
+  $('kw').value = defaultKeywords(p);
+  renderCountryOptions(p);
+  renderSkillChips();
+  $('providerStatus').innerHTML = '';
+}
+
+function defaultKeywords(p) {
+  if (p.searchKeywords) return p.searchKeywords;
+  if (p.jobTitles && p.jobTitles.length) return p.jobTitles[0];
+  if (p.headline) return p.headline;
+  return (p.skills || []).slice(0, 3).join(' ');
+}
+
+function renderCountryOptions(p) {
+  const home = (p.location.countryCode || '').toLowerCase();
+  $('countries').innerHTML = Object.entries(COUNTRIES)
+    .map(([code, label]) =>
+      '<option value="' + code + '"' + (code === home ? ' selected' : '') + '>' + esc(label) + '</option>')
+    .join('');
+}
+
+function renderSkillChips() {
+  $('profileSkills').innerHTML = editSkills.length
+    ? editSkills.map((s, i) =>
+        '<span class="chip">' + esc(s) +
+        '<button type="button" class="x" data-i="' + i + '" title="Remove">×</button></span>').join('')
+    : '<span style="color:var(--muted)">No skills detected — add the ones that fit your CV.</span>';
+  for (const btn of $('profileSkills').querySelectorAll('button.x')) {
+    btn.onclick = () => { editSkills.splice(Number(btn.dataset.i), 1); renderSkillChips(); };
+  }
+}
+
+$('addSkill').addEventListener('click', addSkillFromInput);
+$('newSkill').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addSkillFromInput(); } });
+function addSkillFromInput() {
+  const v = $('newSkill').value.trim().toLowerCase();
+  if (v && !editSkills.includes(v)) { editSkills.push(v); renderSkillChips(); }
+  $('newSkill').value = '';
+}
+
+/* ---- Step 2: search with the refined profile --------------------- */
+$('search').addEventListener('click', async () => {
+  if (!profile) return;
+  $('error').classList.add('hidden');
+  $('search').disabled = true;
+  $('searchSpinner').classList.remove('hidden');
+  try {
+    const refined = {
+      ...profile,
+      searchKeywords: $('kw').value.trim(),
+      skills: editSkills,
+    };
+    const filters = {
+      countries: [...$('countries').selectedOptions].map((o) => o.value),
+    };
+    const body = { profile: refined, filters };
+    if ($('demo').checked) body.demo = true;
+    const res = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    jobs = data.jobs;
+    renderProviderStatus(data);
+    buildCountryFilter();
+    renderTable();
+    $('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    $('search').disabled = false;
+    $('searchSpinner').classList.add('hidden');
+  }
+});
+
+function renderProviderStatus(data) {
   $('providerStatus').innerHTML = 'Sources: ' + data.providerStatus.map((s) => {
     const cls = s.status === 'ok' ? 'ok' : s.status === 'error' ? 'err' : 'skip';
     const note = s.status === 'ok' ? s.count + ' jobs' : s.status === 'skipped' ? 'no API key' : 'unreachable';
@@ -149,9 +327,51 @@ function renderProfile(data) {
   }).join(' · ');
 }
 
+/* ---- Results filters --------------------------------------------- */
+function buildCountryFilter() {
+  const codes = [...new Set(jobs.map((j) => (j.country || '').toLowerCase()).filter(Boolean))].sort();
+  $('countryFilter').innerHTML = '<option value="">All</option>' +
+    codes.map((c) => '<option value="' + c + '">' + esc(COUNTRIES[c] || c.toUpperCase()) + '</option>').join('');
+}
+
+for (const id of ['minChance', 'countryFilter', 'recency', 'remoteOnly', 'starredOnly']) {
+  $(id).addEventListener('input', renderTable);
+}
+for (const cb of document.querySelectorAll('.lvl')) cb.addEventListener('input', renderTable);
+
+function visibleJobs() {
+  const minChance = Number($('minChance').value);
+  const levels = new Set([...document.querySelectorAll('.lvl:checked')].map((c) => c.value));
+  const country = $('countryFilter').value;
+  const recency = Number($('recency').value);
+  const remoteOnly = $('remoteOnly').checked;
+  const starredOnly = $('starredOnly').checked;
+  const cutoff = recency ? Date.now() - recency * 86400000 : 0;
+
+  return jobs.filter((j) => {
+    if (j.match.hiringChance < minChance) return false;
+    if (!levels.has(j.match.label)) return false;
+    if (country && (j.country || '').toLowerCase() !== country) return false;
+    if (remoteOnly && !j.remote) return false;
+    if (starredOnly && !isStarred(j)) return false;
+    if (cutoff && j.postedDate) {
+      const t = Date.parse(j.postedDate.slice(0, 10));
+      if (!Number.isNaN(t) && t < cutoff) return false;
+    }
+    return true;
+  });
+}
+
+/* ---- Results table ----------------------------------------------- */
 function renderTable() {
   $('resultsPanel').classList.remove('hidden');
-  $('resultCount').textContent = jobs.length + ' matching jobs, ranked by estimated hiring chance';
+  const $minChanceVal = $('minChanceVal');
+  if ($minChanceVal) $minChanceVal.textContent = $('minChance').value + '%';
+
+  const shown = visibleJobs();
+  $('resultCount').textContent =
+    shown.length + ' of ' + jobs.length + ' jobs shown, ranked by estimated hiring chance';
+
   $('headRow').innerHTML = COLUMNS.map((c) =>
     '<th data-key="' + c.key + '">' + c.label +
     (sortKey === c.key ? ' <span class="arrow">' + (sortDir > 0 ? '▲' : '▼') + '</span>' : '') + '</th>'
@@ -164,15 +384,19 @@ function renderTable() {
       renderTable();
     };
   }
+
   const col = COLUMNS.find((c) => c.key === sortKey);
-  const sorted = [...jobs].sort((a, b) => {
+  const sorted = [...shown].sort((a, b) => {
     const va = col.sort(a), vb = col.sort(b);
     return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
   });
+
   $('body').innerHTML = sorted.map((j) => {
     const m = j.match;
     const color = m.label === 'High' ? 'var(--high)' : m.label === 'Medium' ? 'var(--med)' : 'var(--low)';
+    const starred = isStarred(j);
     return '<tr>' +
+      '<td><button class="star ' + (starred ? 'on' : '') + '" data-key="' + esc(jobKey(j)) + '" title="Save job">' + (starred ? '★' : '☆') + '</button></td>' +
       '<td><span class="chance ' + m.label + '">' + m.hiringChance + '% · ' + m.label + '</span>' +
         '<div class="bar"><div style="width:' + m.hiringChance + '%;background:' + color + '"></div></div></td>' +
       '<td>' + (j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">' + esc(j.title) + '</a>' : esc(j.title)) + '</td>' +
@@ -184,14 +408,35 @@ function renderTable() {
       '<td class="skills">' + esc(m.matchedSkills.join(', ') || '—') + '</td>' +
     '</tr>';
   }).join('');
+
+  for (const btn of $('body').querySelectorAll('button.star')) {
+    btn.onclick = () => { toggleStar(btn.dataset.key); renderTable(); };
+  }
 }
 
+/* ---- Bookmarks (localStorage) ------------------------------------ */
+function jobKey(j) { return j.url || j.id || (j.title + '::' + j.company); }
+function loadStarred() {
+  try { return new Set(JSON.parse(localStorage.getItem(STAR_KEY) || '[]')); }
+  catch { return new Set(); }
+}
+function saveStarred(set) {
+  try { localStorage.setItem(STAR_KEY, JSON.stringify([...set])); } catch {}
+}
+function isStarred(j) { return loadStarred().has(jobKey(j)); }
+function toggleStar(key) {
+  const set = loadStarred();
+  if (set.has(key)) set.delete(key); else set.add(key);
+  saveStarred(set);
+}
+
+/* ---- CSV export (of the currently visible rows) ------------------ */
 $('exportCsv').addEventListener('click', () => {
-  const header = ['Hiring chance %', 'Label', 'Job title', 'Company', 'Location', 'Remote', 'Salary', 'Posted', 'Source', 'Matched skills', 'URL'];
-  const rows = jobs.map((j) => [
+  const header = ['Hiring chance %', 'Label', 'Job title', 'Company', 'Location', 'Remote', 'Salary', 'Posted', 'Source', 'Matched skills', 'Starred', 'URL'];
+  const rows = visibleJobs().map((j) => [
     j.match.hiringChance, j.match.label, j.title, j.company, j.location,
     j.remote ? 'yes' : 'no', j.salary, j.postedDate, j.source,
-    j.match.matchedSkills.join('; '), j.url,
+    j.match.matchedSkills.join('; '), isStarred(j) ? 'yes' : 'no', j.url,
   ]);
   const csv = [header, ...rows]
     .map((r) => r.map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(','))
@@ -203,6 +448,11 @@ $('exportCsv').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
+function showError(msg) {
+  $('error').textContent = msg;
+  $('error').classList.remove('hidden');
+}
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>

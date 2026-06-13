@@ -4,7 +4,7 @@
  * https://www.arbeitnow.com/api/job-board-api
  */
 
-import { fetchJson } from './util.js';
+import { fetchJson, keywordTerms, matchesAnyTerm } from './util.js';
 import { stripHtml } from '../europass/parser.js';
 
 export const arbeitnow = {
@@ -14,13 +14,16 @@ export const arbeitnow = {
   isConfigured: () => true,
 
   async search(profile, { limit = 50 } = {}) {
-    const jobs = [];
-    // The API has no keyword parameter; pull the latest pages and let
-    // the scorer rank relevance.
-    for (let page = 1; page <= 2 && jobs.length < limit; page++) {
+    // The public API has no keyword parameter, so we pull several pages of
+    // the latest postings and keep only the ones whose title or description
+    // mention the candidate's role or skills. This fills the result slots
+    // with relevant roles instead of whatever happens to be newest.
+    const terms = keywordTerms(profile);
+    const collected = [];
+    for (let page = 1; page <= 5 && collected.length < limit * 5; page++) {
       const data = await fetchJson(`https://www.arbeitnow.com/api/job-board-api?page=${page}`);
       for (const job of data.data || []) {
-        jobs.push({
+        collected.push({
           id: `arbeitnow-${job.slug}`,
           title: job.title || '',
           company: job.company_name || '',
@@ -36,6 +39,11 @@ export const arbeitnow = {
       }
       if (!data.links || !data.links.next) break;
     }
-    return jobs.slice(0, limit);
+    const relevant = collected.filter((job) =>
+      matchesAnyTerm(`${job.title} ${job.description}`, terms)
+    );
+    // If nothing matched (unusual keywords), fall back to the latest feed
+    // so the scorer still has something to rank.
+    return (relevant.length ? relevant : collected).slice(0, limit);
   },
 };
