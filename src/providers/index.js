@@ -18,10 +18,13 @@ export const ALL_PROVIDERS = [eures, arbeitnow, remotive, adzuna, jooble, reed];
 
 /**
  * @param {import('../europass/parser.js').CvProfile} profile
- * @param {{demoMode?: boolean, limitPerProvider?: number}} [options]
+ * @param {{demoMode?: boolean, limitPerProvider?: number, filters?: {countries?: string[]}}} [options]
  * @returns {Promise<{jobs: object[], providerStatus: {id: string, name: string, status: string, count: number, detail: string}[]}>}
  */
-export async function searchAllProviders(profile, { demoMode = false, limitPerProvider = 30 } = {}) {
+export async function searchAllProviders(
+  profile,
+  { demoMode = false, limitPerProvider = 30, filters = {} } = {}
+) {
   const providers = demoMode ? [demo] : ALL_PROVIDERS;
   const providerStatus = [];
   const jobs = [];
@@ -31,7 +34,7 @@ export async function searchAllProviders(profile, { demoMode = false, limitPerPr
       if (!provider.isConfigured()) {
         return { provider, skipped: true };
       }
-      const found = await provider.search(profile, { limit: limitPerProvider });
+      const found = await provider.search(profile, { limit: limitPerProvider, filters });
       return { provider, found };
     })
   );

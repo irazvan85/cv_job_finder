@@ -4,7 +4,7 @@
  * set ADZUNA_APP_ID and ADZUNA_APP_KEY (https://developer.adzuna.com/).
  */
 
-import { fetchJson, keywordsFromProfile, countryCodeOf } from './util.js';
+import { fetchJson, keywordsFromProfile, countryCodeOf, marketsFor } from './util.js';
 
 const EUROPEAN_MARKETS = ['at', 'be', 'ch', 'de', 'es', 'fr', 'gb', 'it', 'nl', 'pl'];
 
@@ -14,22 +14,25 @@ export const adzuna = {
   requiresKey: true,
   isConfigured: () => Boolean(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY),
 
-  async search(profile, { limit = 30 } = {}) {
+  async search(profile, { limit = 30, filters } = {}) {
     const appId = process.env.ADZUNA_APP_ID;
     const appKey = process.env.ADZUNA_APP_KEY;
     const what = encodeURIComponent(keywordsFromProfile(profile));
 
-    // Search the candidate's home market first, then the other European
-    // markets, until the limit is reached.
+    // Honour the user's target countries when set; otherwise search the
+    // candidate's home market first, then the other European markets.
     const home = countryCodeOf(profile);
-    const markets = [...new Set([home, ...EUROPEAN_MARKETS])].filter((m) =>
-      EUROPEAN_MARKETS.includes(m)
-    );
+    const explicit = Boolean(filters && filters.countries && filters.countries.length);
+    const markets = marketsFor(profile, filters, EUROPEAN_MARKETS);
 
     const jobs = [];
     for (const market of markets) {
       if (jobs.length >= limit) break;
-      const perMarket = market === home ? 20 : 5;
+      const perMarket = explicit
+        ? Math.max(5, Math.ceil(limit / markets.length))
+        : market === home
+          ? 20
+          : 5;
       try {
         const data = await fetchJson(
           `https://api.adzuna.com/v1/api/jobs/${market}/search/1?app_id=${appId}&app_key=${appKey}&results_per_page=${perMarket}&what=${what}&content-type=application/json`

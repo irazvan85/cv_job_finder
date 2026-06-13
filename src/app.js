@@ -3,8 +3,15 @@
  * Vercel serverless function (api/index.js).
  *
  * Routes:
- *   POST /api/match      multipart upload field "cv" (+ optional "demo=1")
+ *   POST /api/parse      multipart upload field "cv" → { profile }
+ *   POST /api/search     JSON { profile, filters, demo } → { jobs, ... }
+ *   POST /api/match      multipart "cv" (+ optional "demo=1") — parse+search
+ *                        in one call (kept for backward compatibility)
  *   GET  /api/providers  provider list with configuration status
+ *
+ * The two-step parse/search split lets the UI show the parsed profile and
+ * let the user refine the search (keywords, skills, target countries)
+ * before any job board is queried.
  */
 
 import express from 'express';
@@ -23,6 +30,7 @@ export function createApp() {
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_UPLOAD_BYTES },
   });
+  app.use(express.json({ limit: '2mb' }));
 
   app.get('/api/providers', (_req, res) => {
     res.json(
@@ -35,6 +43,45 @@ export function createApp() {
     );
   });
 
+  // Step 1: parse an uploaded CV into a profile (no job boards queried).
+  app.post('/api/parse', upload.single('cv'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No CV file uploaded. Send it as multipart field "cv".' });
+      }
+      const profile = await parseEuropassCv(req.file.buffer, req.file.originalname);
+      if (!profile.skills.length && !profile.jobTitles.length) {
+        return res.status(422).json({
+          error:
+            'Could not extract any skills or job titles from this file. ' +
+            'Make sure it is a Europass CV (XML, JSON, or an official Europass PDF).',
+          profile,
+        });
+      }
+      res.json({ profile });
+    } catch (err) {
+      res.status(500).json({ error: `Failed to process CV: ${err.message}` });
+    }
+  });
+
+  // Step 2: search job boards for a (possibly user-refined) profile.
+  app.post('/api/search', async (req, res) => {
+    try {
+      const profile = normaliseProfile(req.body && req.body.profile);
+      if (!profile) {
+        return res.status(400).json({ error: 'Missing or invalid "profile" in request body.' });
+      }
+      const filters = sanitiseFilters(req.body && req.body.filters);
+      const demoMode = req.body.demo === true || req.body.demo === '1' || process.env.DEMO === '1';
+      const { jobs, providerStatus } = await searchAllProviders(profile, { demoMode, filters });
+      const ranked = rankJobs(profile, jobs);
+      res.json({ profile, jobs: ranked, providerStatus, demoMode });
+    } catch (err) {
+      res.status(500).json({ error: `Search failed: ${err.message}` });
+    }
+  });
+
+  // Backward-compatible one-shot: parse the upload and search in one call.
   app.post('/api/match', upload.single('cv'), async (req, res) => {
     try {
       if (!req.file) {
@@ -73,4 +120,52 @@ export function createApp() {
   });
 
   return app;
+}
+
+const str = (v) => (v == null ? '' : String(v));
+const arr = (v) => (Array.isArray(v) ? v : []);
+
+/**
+ * Coerce a client-supplied profile (from /api/parse, possibly edited in the
+ * refine panel) into the shape the matching engine expects. Keeps only the
+ * fields we use and applies sane defaults so a malformed body can't throw.
+ */
+function normaliseProfile(p) {
+  if (!p || typeof p !== 'object') return null;
+  const loc = p.location || {};
+  return {
+    name: str(p.name),
+    email: str(p.email),
+    phone: str(p.phone),
+    location: {
+      city: str(loc.city),
+      country: str(loc.country),
+      countryCode: str(loc.countryCode),
+    },
+    headline: str(p.headline),
+    searchKeywords: str(p.searchKeywords),
+    jobTitles: arr(p.jobTitles).map(str).filter(Boolean),
+    skills: arr(p.skills).map(str).map((s) => s.toLowerCase()).filter(Boolean),
+    languages: arr(p.languages).map((l) => ({
+      code: str(l && l.code).toLowerCase(),
+      name: str(l && l.name),
+      level: str(l && l.level),
+    })),
+    education: arr(p.education),
+    experience: arr(p.experience),
+    totalExperienceYears: Number(p.totalExperienceYears) || 0,
+    seniority: ['junior', 'mid', 'senior'].includes(p.seniority) ? p.seniority : 'mid',
+    rawText: str(p.rawText),
+    sourceFormat: str(p.sourceFormat),
+  };
+}
+
+/** Validate the search filters supplied by the refine panel. */
+function sanitiseFilters(f) {
+  const filters = f && typeof f === 'object' ? f : {};
+  return {
+    countries: arr(filters.countries)
+      .map((c) => str(c).toLowerCase().slice(0, 2))
+      .filter(Boolean),
+  };
 }

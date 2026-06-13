@@ -10,6 +10,7 @@ import { parseEuropassCv, parseJson, parsePlainText } from '../src/europass/pars
 import { extractSkillTokens } from '../src/matching/skills.js';
 import { scoreJob, rankJobs } from '../src/matching/scorer.js';
 import { searchAllProviders } from '../src/providers/index.js';
+import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor } from '../src/providers/util.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -53,6 +54,39 @@ check('single-word still found', tokens.includes('react'));
 check('c# matched', tokens.includes('c#'));
 check('node.js matched', tokens.includes('node.js'));
 check('no false "r" match from random text', !extractSkillTokens('we are hiring').includes('r'));
+
+/* --- Skill aliases ------------------------------------------------ */
+console.log('Skill aliases');
+check('k8s → kubernetes', extractSkillTokens('Experience with K8s clusters').includes('kubernetes'));
+check('golang → go', extractSkillTokens('Backend in Golang').includes('go'));
+check('postgres → postgresql', extractSkillTokens('postgres tuning').includes('postgresql'));
+check('reactjs → react', extractSkillTokens('built with ReactJS').includes('react'));
+check('alias and canonical de-duplicate', (() => {
+  const t = extractSkillTokens('Kubernetes and K8s both used');
+  return t.filter((s) => s === 'kubernetes').length === 1;
+})());
+
+/* --- Keyword helpers ---------------------------------------------- */
+console.log('Keyword helpers');
+check('searchKeywords override wins', keywordsFromProfile({ ...profile, searchKeywords: 'devops engineer' }) === 'devops engineer');
+check('falls back to job title without override', keywordsFromProfile(profile) === profile.jobTitles[0]);
+const terms = keywordTerms(profile);
+check('keywordTerms include role tokens', terms.includes('developer') || terms.includes('stack'));
+check('matchesAnyTerm finds a term', matchesAnyTerm('Senior React Developer wanted', ['react']));
+check('matchesAnyTerm rejects when none match', !matchesAnyTerm('Pastry chef position', ['react', 'python']));
+check('matchesAnyTerm true on empty terms', matchesAnyTerm('anything', []));
+
+/* --- Market selection --------------------------------------------- */
+console.log('Market selection');
+const ADZUNA_MARKETS = ['at', 'be', 'ch', 'de', 'es', 'fr', 'gb', 'it', 'nl', 'pl'];
+check('explicit countries intersect availability', (() => {
+  const m = marketsFor(profile, { countries: ['de', 'fr', 'jp'] }, ADZUNA_MARKETS);
+  return m.includes('de') && m.includes('fr') && !m.includes('jp');
+})());
+check('no filter falls back to home + all', (() => {
+  const m = marketsFor({ location: { country: 'Germany', countryCode: 'DE' } }, {}, ADZUNA_MARKETS);
+  return m.includes('de') && m.length === ADZUNA_MARKETS.length;
+})());
 
 /* --- Scoring -------------------------------------------------------*/
 console.log('Scoring');
@@ -136,6 +170,28 @@ await new Promise((resolve) => {
       const res2 = await fetch(`http://127.0.0.1:${port}/api/match`, { method: 'POST', body: fd });
       const data = await res2.json();
       check('POST /api/match (demo) returns ranked jobs', res2.status === 200 && data.jobs.length >= 10, `status ${res2.status}`);
+
+      // Two-step flow: parse, then search the parsed (and tweakable) profile.
+      const fdParse = new FormData();
+      fdParse.append('cv', new Blob([xmlBuffer], { type: 'application/xml' }), 'cv.xml');
+      const resParse = await fetch(`http://127.0.0.1:${port}/api/parse`, { method: 'POST', body: fdParse });
+      const parsed = await resParse.json();
+      check('POST /api/parse returns a profile only', resParse.status === 200 && parsed.profile && !parsed.jobs, `status ${resParse.status}`);
+
+      const resSearch = await fetch(`http://127.0.0.1:${port}/api/search`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ profile: parsed.profile, filters: { countries: ['de'] }, demo: true }),
+      });
+      const searched = await resSearch.json();
+      check('POST /api/search (demo) returns ranked jobs', resSearch.status === 200 && searched.jobs.length >= 10, `status ${resSearch.status}`);
+
+      const resBad = await fetch(`http://127.0.0.1:${port}/api/search`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ filters: {} }),
+      });
+      check('POST /api/search without profile returns 400', resBad.status === 400, `status ${resBad.status}`);
 
       const fd3 = new FormData();
       fd3.append('cv', new Blob([new Uint8Array(5 * 1024 * 1024)]), 'big.xml');

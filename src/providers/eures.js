@@ -20,7 +20,13 @@ export const eures = {
   isConfigured: () => true,
 
   /** @param {import('../europass/parser.js').CvProfile} profile */
-  async search(profile, { limit = 25 } = {}) {
+  async search(profile, { limit = 25, filters } = {}) {
+    const locationCodes =
+      filters && filters.countries && filters.countries.length
+        ? filters.countries
+        : countryCodeOf(profile)
+          ? [countryCodeOf(profile)]
+          : [];
     const body = {
       resultsPerPage: limit,
       page: 1,
@@ -34,7 +40,7 @@ export const eures = {
       sectorCodes: [],
       educationAndQualificationLevelCodes: [],
       positionOfferingCodes: [],
-      locationCodes: countryCodeOf(profile) ? [countryCodeOf(profile)] : [],
+      locationCodes,
       euresFlagCodes: [],
       otherBenefitsCodes: [],
       requiredLanguages: [],
