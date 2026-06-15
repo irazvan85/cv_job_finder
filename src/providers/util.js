@@ -159,10 +159,29 @@ const COUNTRY_CODES = {
   malta: 'mt', netherlands: 'nl', poland: 'pl', portugal: 'pt', romania: 'ro',
   slovakia: 'sk', slovenia: 'si', spain: 'es', sweden: 'se', norway: 'no',
   switzerland: 'ch', iceland: 'is', 'united kingdom': 'gb', uk: 'gb',
+  // Romanian name
+  românia: 'ro',
 };
 
 export function countryCodeOf(profile) {
   const cc = profile.location.countryCode.toLowerCase();
   if (cc) return cc;
   return COUNTRY_CODES[profile.location.country.toLowerCase()] || '';
+}
+
+/**
+ * Infer a country code from a job's location string when job.country is empty.
+ * Scans the location text for known country names and returns the ISO code.
+ * @param {object} job
+ * @returns {string} ISO 3166-1 alpha-2 code, or '' if unknown
+ */
+export function inferCountryFromLocation(job) {
+  if (job.country) return job.country.toLowerCase();
+  const loc = (job.location || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  for (const [name, code] of Object.entries(COUNTRY_CODES)) {
+    const folded = name.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (loc.includes(folded)) return code;
+  }
+  return '';
 }

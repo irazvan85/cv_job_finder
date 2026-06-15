@@ -16,6 +16,7 @@ import { adzuna } from './adzuna.js';
 import { jooble } from './jooble.js';
 import { reed } from './reed.js';
 import { demo } from './demo.js';
+import { inferCountryFromLocation } from './util.js';
 
 // Romanian portals first (most directly relevant for Romanian candidates),
 // then pan-European, then key-required aggregators.
@@ -75,6 +76,12 @@ export async function searchAllProviders(
         detail: String(result.reason && result.reason.message ? result.reason.message : result.reason),
       });
     }
+  }
+
+  // Fill in missing country codes from the location string so the client-side
+  // country filter has something to work with for providers that leave it empty.
+  for (const job of jobs) {
+    job.country = inferCountryFromLocation(job);
   }
 
   return { jobs: dedupe(jobs), providerStatus };
