@@ -10,7 +10,11 @@ import { parseEuropassCv, parseJson, parsePlainText } from '../src/europass/pars
 import { extractSkillTokens } from '../src/matching/skills.js';
 import { scoreJob, rankJobs } from '../src/matching/scorer.js';
 import { searchAllProviders } from '../src/providers/index.js';
-import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor } from '../src/providers/util.js';
+import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor, parseRssItems, rssDate } from '../src/providers/util.js';
+import {
+  foldDiacritics, extractRomanianSkills, normalizeLocation,
+  requiredLanguagesRo, normalizeRoSalary, wantsJuniorRo,
+} from '../src/matching/romanian.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -75,6 +79,66 @@ check('keywordTerms include role tokens', terms.includes('developer') || terms.i
 check('matchesAnyTerm finds a term', matchesAnyTerm('Senior React Developer wanted', ['react']));
 check('matchesAnyTerm rejects when none match', !matchesAnyTerm('Pastry chef position', ['react', 'python']));
 check('matchesAnyTerm true on empty terms', matchesAnyTerm('anything', []));
+
+/* --- Romanian localisation ---------------------------------------- */
+console.log('Romanian localisation');
+check('diacritics folded', foldDiacritics('Timișoara Iași București') === 'Timisoara Iasi Bucuresti');
+check('RO skill: contabilitate → accounting', extractRomanianSkills('Experiență în contabilitate și audit').includes('accounting'));
+check('RO skill: resurse umane → hr', extractRomanianSkills('Departament resurse umane').includes('hr'));
+check('RO skill diacritics tolerated', extractRomanianSkills('vânzări și achiziții').includes('sales'));
+check('English text yields no spurious RO skills', extractRomanianSkills('React and Node.js developer').length === 0);
+check('extractSkillTokens picks up RO terms', extractSkillTokens('Responsabil de contabilitate si salarizare').includes('accounting'));
+check('București ↔ Bucharest bridge', normalizeLocation('București, România').includes('bucharest'));
+check('diacritic city normalises', normalizeLocation('Cluj-Napoca') === normalizeLocation('Cluj-Napoca'.normalize('NFD')));
+check('RO language requirement detected', requiredLanguagesRo('Limba engleză nivel avansat obligatoriu').includes('en'));
+check('RO language: germană detected', requiredLanguagesRo('Cunoștințe de limba germană').includes('de'));
+check('RO junior cue detected', wantsJuniorRo('Post pentru debutant, fără experiență') === true);
+check('RO salary RON net normalised', normalizeRoSalary('12.000 - 16.000 RON net') === '12,000–16,000 RON net');
+check('RO salary lei brut → gross', normalizeRoSalary('6.000 - 8.000 lei brut') === '6,000–8,000 RON gross');
+check('RO salary single value', normalizeRoSalary('2500 lei') === '2,500 RON');
+check('RO salary empty passes through', normalizeRoSalary('') === '');
+
+// Scoring a Romanian-language ad against the (Romanian) sample CV.
+const roDevJob = {
+  title: 'Dezvoltator Full Stack (React/Node.js)',
+  description: 'Căutăm un dezvoltator cu experiență în React, TypeScript, Node.js și PostgreSQL. Docker, CI/CD, agile. Limba engleză nivel avansat obligatorie.',
+  location: 'București, România', country: 'ro', remote: false,
+};
+const roScore = scoreJob(profile, roDevJob);
+check('RO dev ad matches RO dev CV well', roScore.hiringChance >= 60, `got ${roScore.hiringChance}%`);
+check('RO ad reports matched skills', roScore.matchedSkills.includes('react') && roScore.matchedSkills.includes('node.js'));
+
+/* --- RSS parsing utils -------------------------------------------- */
+console.log('RSS utilities');
+const sampleRss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:ejobs="https://www.ejobs.ro">
+  <channel>
+    <title>eJobs.ro</title>
+    <item>
+      <title>Senior React Developer</title>
+      <link>https://www.ejobs.ro/user/locuri-de-munca/senior-react-developer/123</link>
+      <description>React, TypeScript, Node.js required. Full remote.</description>
+      <pubDate>Mon, 01 Jan 2024 10:00:00 +0200</pubDate>
+      <ejobs:companyName>Acme SRL</ejobs:companyName>
+      <ejobs:city>Cluj-Napoca</ejobs:city>
+      <ejobs:salary>5000-7000 RON</ejobs:salary>
+    </item>
+    <item>
+      <title>Junior Data Analyst</title>
+      <link>https://www.ejobs.ro/user/locuri-de-munca/junior-data-analyst/456</link>
+      <description>SQL, Excel, Power BI knowledge required.</description>
+      <pubDate>Tue, 02 Jan 2024 09:00:00 +0200</pubDate>
+      <ejobs:companyName>DataCo SA</ejobs:companyName>
+      <ejobs:city>Bucharest</ejobs:city>
+    </item>
+  </channel>
+</rss>`;
+const rssItems = parseRssItems(sampleRss);
+check('parseRssItems returns array', Array.isArray(rssItems) && rssItems.length === 2);
+check('rss title parsed', String(rssItems[0].title || '').includes('React'));
+check('rss namespace stripped (ejobs:city → city)', !!rssItems[0].city || !!rssItems[0].companyName);
+check('rssDate parses RFC 2822', rssDate('Mon, 01 Jan 2024 10:00:00 +0200') === '2024-01-01');
+check('rssDate returns empty on bad input', rssDate('') === '');
 
 /* --- Market selection --------------------------------------------- */
 console.log('Market selection');
@@ -162,7 +226,7 @@ await new Promise((resolve) => {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/api/providers`);
       const list = await res.json();
-      check('GET /api/providers returns 200 JSON', res.status === 200 && Array.isArray(list) && list.length === 6, `status ${res.status}`);
+      check('GET /api/providers returns 200 JSON', res.status === 200 && Array.isArray(list) && list.length === 9, `status ${res.status}`);
 
       const fd = new FormData();
       fd.append('cv', new Blob([xmlBuffer], { type: 'application/xml' }), 'cv.xml');

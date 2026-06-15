@@ -48,6 +48,9 @@ is currently filtered into view.
 | Source | Coverage | API key |
 | ------ | -------- | ------- |
 | **EURES** | The European Commission's portal aggregating vacancies from the **public employment services of every EU/EEA country + Switzerland** — the broadest single European source | none |
+| **eJobs RO** | Romania's #1 job board (~30 000 active vacancies across all sectors) | none † |
+| **BestJobs RO** | Romania's #2 job board (Ringier Romania group) | none † |
+| **Hipo.ro** | Romanian specialist board for graduates, young professionals, and entry-level roles | none † |
 | **Arbeitnow** | Germany/DACH and English-speaking roles across Europe | none |
 | **Remotive** | Remote jobs open to candidates in Europe | none |
 | **Adzuna** | AT, BE, CH, DE, ES, FR, GB, IT, NL, PL | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` ([free](https://developer.adzuna.com/)) |
@@ -58,6 +61,38 @@ Providers without a configured key are skipped and reported as such; a
 provider that errors never sinks the others. Commercial boards without public
 APIs (LinkedIn, Indeed, StepStone, …) cannot be queried directly — EURES,
 Adzuna and Jooble are aggregators that cover much of the same inventory.
+
+† **Romanian portal IP restriction** — eJobs, BestJobs, and Hipo block
+requests from cloud/datacenter ASN ranges (AWS, GCP, Azure, Vercel Edge
+Network). They work correctly from **local installations** and from servers
+with EU residential or ISP IP addresses. On blocked IPs they fail gracefully
+and appear as "unreachable" in the provider status bar; the other providers
+continue normally. For a cloud deployment that needs Romanian coverage,
+either self-host on a Romanian/EU server or proxy Romanian requests through
+a residential IP.
+
+### Romania-aware matching
+
+Because the Romanian boards (and many EURES vacancies) post in Romanian, the
+matcher understands Romanian text — not just English (`src/matching/romanian.js`):
+
+- **Diacritics folding** — `Timișoara`/`Timisoara`, `Iași`/`Iasi` compare equal,
+  so a CV and an ad with different spelling still match on location and skills.
+- **Romanian skill terms** — `contabilitate → accounting`, `resurse umane → hr`,
+  `vânzări → sales`, `asistent medical → nursing`, etc. map onto the same
+  canonical skills, so a Romanian-language ad still surfaces recognised skills.
+- **București ↔ Bucharest bridge** — the only Romanian city whose English name
+  differs is normalised both ways for the location signal.
+- **Romanian language requirements** — `limba engleză nivel avansat`,
+  `cunoștințe de limba germană` feed the language signal.
+- **Romanian seniority cues** — `debutant`, `fără experiență` (junior),
+  `coordonator`, `expert` (senior) feed the seniority signal.
+- **Romanian salaries** — `12.000 - 16.000 RON net`, `6.000 lei brut` are
+  normalised to a tidy, comparable display (`12,000–16,000 RON net`).
+
+This layer is keyed off diacritics-folded text and Romanian terms don't collide
+with English words, so it never changes the result for an English CV or ad. Try
+**Demo mode** — two Romanian-language vacancies are included in the sample set.
 
 ## Estimated hiring chance
 

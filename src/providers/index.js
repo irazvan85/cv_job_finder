@@ -7,6 +7,9 @@
  */
 
 import { eures } from './eures.js';
+import { ejobs } from './ejobs.js';
+import { bestjobs } from './bestjobs.js';
+import { hipo } from './hipo.js';
 import { arbeitnow } from './arbeitnow.js';
 import { remotive } from './remotive.js';
 import { adzuna } from './adzuna.js';
@@ -14,7 +17,9 @@ import { jooble } from './jooble.js';
 import { reed } from './reed.js';
 import { demo } from './demo.js';
 
-export const ALL_PROVIDERS = [eures, arbeitnow, remotive, adzuna, jooble, reed];
+// Romanian portals first (most directly relevant for Romanian candidates),
+// then pan-European, then key-required aggregators.
+export const ALL_PROVIDERS = [eures, ejobs, bestjobs, hipo, arbeitnow, remotive, adzuna, jooble, reed];
 
 /**
  * @param {import('../europass/parser.js').CvProfile} profile

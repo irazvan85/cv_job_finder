@@ -15,6 +15,12 @@
 
 import { extractSkillTokens } from './skills.js';
 import { stripHtml } from '../europass/parser.js';
+import {
+  normalizeLocation,
+  requiredLanguagesRo,
+  wantsJuniorRo,
+  wantsSeniorRo,
+} from './romanian.js';
 
 const WEIGHTS = { skills: 0.45, title: 0.25, location: 0.15, language: 0.1, seniority: 0.05 };
 
@@ -112,10 +118,12 @@ function tokenOverlap(a, b) {
 
 function locationCompatibility(profile, job) {
   if (job.remote) return 1;
-  const jobLoc = `${job.location || ''} ${job.country || ''}`.toLowerCase();
+  // Diacritics-folded with the București ↔ Bucharest bridge, so a Romanian
+  // ad and an English CV (or differing diacritics) still line up.
+  const jobLoc = normalizeLocation(`${job.location || ''} ${job.country || ''}`);
   if (!jobLoc.trim()) return 0.5;
-  const city = profile.location.city.toLowerCase();
-  const country = profile.location.country.toLowerCase();
+  const city = normalizeLocation(profile.location.city);
+  const country = normalizeLocation(profile.location.country);
   const cc = profile.location.countryCode.toLowerCase();
   if (city && jobLoc.includes(city)) return 1;
   if (country && jobLoc.includes(country)) return 0.8;
@@ -144,15 +152,18 @@ function languageCompatibility(profile, job, jobText) {
     }
   }
   if (job.language) required.push(String(job.language).toLowerCase().slice(0, 2));
-  if (!required.length) return spoken.has('en') || spoken.size === 0 ? 0.8 : 0.6;
-  const met = required.filter((code) => spoken.has(code));
-  return met.length / required.length;
+  // Romanian-language requirements ("limba engleză", "germană avansat", …).
+  for (const code of requiredLanguagesRo(jobText)) required.push(code);
+  const uniqueRequired = [...new Set(required)];
+  if (!uniqueRequired.length) return spoken.has('en') || spoken.size === 0 ? 0.8 : 0.6;
+  const met = uniqueRequired.filter((code) => spoken.has(code));
+  return met.length / uniqueRequired.length;
 }
 
 function seniorityAlignment(profile, jobText) {
   const lower = jobText.toLowerCase();
-  const wantsSenior = /\b(senior|lead|principal|head of|staff)\b/.test(lower);
-  const wantsJunior = /\b(junior|entry[ -]level|graduate|trainee|intern)\b/.test(lower);
+  const wantsSenior = /\b(senior|lead|principal|head of|staff)\b/.test(lower) || wantsSeniorRo(jobText);
+  const wantsJunior = /\b(junior|entry[ -]level|graduate|trainee|intern)\b/.test(lower) || wantsJuniorRo(jobText);
   if (!wantsSenior && !wantsJunior) return 0.8;
   if (wantsSenior) return profile.seniority === 'senior' ? 1 : profile.seniority === 'mid' ? 0.5 : 0.15;
   return profile.seniority === 'junior' ? 1 : profile.seniority === 'mid' ? 0.6 : 0.3;
