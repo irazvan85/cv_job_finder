@@ -78,6 +78,20 @@ const DEMO_JOBS = [
     remote: false, salary: '1,400–1,800 EUR/month',
     description: 'Customer service for a German e-commerce client. Native-level German and B2 English. Relocation package, CRM tooling (Salesforce).',
   },
+  // Romanian-language ads, to exercise the Romania-aware matching (diacritics,
+  // RO skill terms, "limba engleză" detection, RON salaries).
+  {
+    title: 'Dezvoltator Full Stack (React/Node.js)',
+    company: 'Bucharest Software SRL', location: 'București, România', country: 'ro',
+    remote: false, salary: '12.000 - 16.000 RON net',
+    description: 'Căutăm un dezvoltator cu experiență în React, TypeScript, Node.js și PostgreSQL. Lucrăm cu Docker, CI/CD și metodologii agile. Limba engleză nivel avansat este obligatorie.',
+  },
+  {
+    title: 'Contabil Senior',
+    company: 'Audit Expert SA', location: 'Iași, România', country: 'ro',
+    remote: false, salary: '6.000 - 8.000 lei brut',
+    description: 'Responsabil de contabilitate, audit și raportare IFRS. Experiență în bugetare și conformitate fiscală. Cunoștințe de limba engleză nivel mediu. Peste 5 ani experiență.',
+  },
 ];
 
 export const demo = {

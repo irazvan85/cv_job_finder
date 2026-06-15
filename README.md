@@ -71,6 +71,29 @@ continue normally. For a cloud deployment that needs Romanian coverage,
 either self-host on a Romanian/EU server or proxy Romanian requests through
 a residential IP.
 
+### Romania-aware matching
+
+Because the Romanian boards (and many EURES vacancies) post in Romanian, the
+matcher understands Romanian text — not just English (`src/matching/romanian.js`):
+
+- **Diacritics folding** — `Timișoara`/`Timisoara`, `Iași`/`Iasi` compare equal,
+  so a CV and an ad with different spelling still match on location and skills.
+- **Romanian skill terms** — `contabilitate → accounting`, `resurse umane → hr`,
+  `vânzări → sales`, `asistent medical → nursing`, etc. map onto the same
+  canonical skills, so a Romanian-language ad still surfaces recognised skills.
+- **București ↔ Bucharest bridge** — the only Romanian city whose English name
+  differs is normalised both ways for the location signal.
+- **Romanian language requirements** — `limba engleză nivel avansat`,
+  `cunoștințe de limba germană` feed the language signal.
+- **Romanian seniority cues** — `debutant`, `fără experiență` (junior),
+  `coordonator`, `expert` (senior) feed the seniority signal.
+- **Romanian salaries** — `12.000 - 16.000 RON net`, `6.000 lei brut` are
+  normalised to a tidy, comparable display (`12,000–16,000 RON net`).
+
+This layer is keyed off diacritics-folded text and Romanian terms don't collide
+with English words, so it never changes the result for an English CV or ad. Try
+**Demo mode** — two Romanian-language vacancies are included in the sample set.
+
 ## Estimated hiring chance
 
 A transparent, explainable heuristic (not a prediction model). Five signals,

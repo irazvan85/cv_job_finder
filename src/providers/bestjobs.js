@@ -14,6 +14,7 @@
 
 import { fetchText, parseRssItems, rssDate, keywordsFromProfile } from './util.js';
 import { stripHtml } from '../europass/parser.js';
+import { normalizeRoSalary } from '../matching/romanian.js';
 
 const FEED_URL = 'https://bestjobs.eu/rss/jobs/';
 
@@ -41,7 +42,7 @@ export const bestjobs = {
         location: city || 'Romania',
         country: 'ro',
         remote,
-        salary: tv(item.salary) || '',
+        salary: normalizeRoSalary(tv(item.salary)),
         url: link,
         postedDate: rssDate(tv(item.pubDate)),
         description: desc,

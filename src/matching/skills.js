@@ -6,7 +6,12 @@
  * boundaries; multi-word skills are matched as phrases. The dictionary
  * approach keeps extraction deterministic and explainable — every skill
  * shown to the user can be traced to literal text in the CV or job ad.
+ *
+ * Romanian-language text is also understood: see extractRomanianSkills in
+ * ./romanian.js, which maps Romanian terms onto these same canonical skills.
  */
+
+import { extractRomanianSkills } from './romanian.js';
 
 const SKILL_DICTIONARY = [
   // Programming languages
@@ -117,5 +122,8 @@ export function extractSkillTokens(text) {
   for (const { skill, pattern } of ALIAS_PATTERNS) {
     if (pattern.test(text)) found.add(skill);
   }
+  // Romanian-language terms (e.g. "contabilitate" → accounting) resolve to
+  // the same canonical skill names.
+  for (const skill of extractRomanianSkills(text)) found.add(skill);
   return [...found];
 }

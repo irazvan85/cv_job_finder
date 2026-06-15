@@ -14,6 +14,7 @@
 
 import { fetchText, parseRssItems, rssDate, keywordsFromProfile } from './util.js';
 import { stripHtml } from '../europass/parser.js';
+import { normalizeRoSalary } from '../matching/romanian.js';
 
 const FEED_URL = 'https://www.ejobs.ro/user/rss/';
 
@@ -34,7 +35,7 @@ export const ejobs = {
       // eJobs uses custom <ejobs:*> tags; removeNSPrefix strips the prefix.
       const company  = tv(item.companyName) || tv(item.company) || tv(item.employer) || parseCompany(title);
       const city     = tv(item.city) || tv(item.location) || '';
-      const salary   = tv(item.salary) || tv(item.salarygross) || tv(item.salarynet) || '';
+      const salary   = normalizeRoSalary(tv(item.salary) || tv(item.salarygross) || tv(item.salarynet));
       const remote   = /remote|telemunca|work from home/i.test(`${title} ${desc}`);
       return {
         id: `ejobs-${hashId(link || title)}`,

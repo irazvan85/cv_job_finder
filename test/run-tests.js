@@ -11,6 +11,10 @@ import { extractSkillTokens } from '../src/matching/skills.js';
 import { scoreJob, rankJobs } from '../src/matching/scorer.js';
 import { searchAllProviders } from '../src/providers/index.js';
 import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor, parseRssItems, rssDate } from '../src/providers/util.js';
+import {
+  foldDiacritics, extractRomanianSkills, normalizeLocation,
+  requiredLanguagesRo, normalizeRoSalary, wantsJuniorRo,
+} from '../src/matching/romanian.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -75,6 +79,34 @@ check('keywordTerms include role tokens', terms.includes('developer') || terms.i
 check('matchesAnyTerm finds a term', matchesAnyTerm('Senior React Developer wanted', ['react']));
 check('matchesAnyTerm rejects when none match', !matchesAnyTerm('Pastry chef position', ['react', 'python']));
 check('matchesAnyTerm true on empty terms', matchesAnyTerm('anything', []));
+
+/* --- Romanian localisation ---------------------------------------- */
+console.log('Romanian localisation');
+check('diacritics folded', foldDiacritics('Timișoara Iași București') === 'Timisoara Iasi Bucuresti');
+check('RO skill: contabilitate → accounting', extractRomanianSkills('Experiență în contabilitate și audit').includes('accounting'));
+check('RO skill: resurse umane → hr', extractRomanianSkills('Departament resurse umane').includes('hr'));
+check('RO skill diacritics tolerated', extractRomanianSkills('vânzări și achiziții').includes('sales'));
+check('English text yields no spurious RO skills', extractRomanianSkills('React and Node.js developer').length === 0);
+check('extractSkillTokens picks up RO terms', extractSkillTokens('Responsabil de contabilitate si salarizare').includes('accounting'));
+check('București ↔ Bucharest bridge', normalizeLocation('București, România').includes('bucharest'));
+check('diacritic city normalises', normalizeLocation('Cluj-Napoca') === normalizeLocation('Cluj-Napoca'.normalize('NFD')));
+check('RO language requirement detected', requiredLanguagesRo('Limba engleză nivel avansat obligatoriu').includes('en'));
+check('RO language: germană detected', requiredLanguagesRo('Cunoștințe de limba germană').includes('de'));
+check('RO junior cue detected', wantsJuniorRo('Post pentru debutant, fără experiență') === true);
+check('RO salary RON net normalised', normalizeRoSalary('12.000 - 16.000 RON net') === '12,000–16,000 RON net');
+check('RO salary lei brut → gross', normalizeRoSalary('6.000 - 8.000 lei brut') === '6,000–8,000 RON gross');
+check('RO salary single value', normalizeRoSalary('2500 lei') === '2,500 RON');
+check('RO salary empty passes through', normalizeRoSalary('') === '');
+
+// Scoring a Romanian-language ad against the (Romanian) sample CV.
+const roDevJob = {
+  title: 'Dezvoltator Full Stack (React/Node.js)',
+  description: 'Căutăm un dezvoltator cu experiență în React, TypeScript, Node.js și PostgreSQL. Docker, CI/CD, agile. Limba engleză nivel avansat obligatorie.',
+  location: 'București, România', country: 'ro', remote: false,
+};
+const roScore = scoreJob(profile, roDevJob);
+check('RO dev ad matches RO dev CV well', roScore.hiringChance >= 60, `got ${roScore.hiringChance}%`);
+check('RO ad reports matched skills', roScore.matchedSkills.includes('react') && roScore.matchedSkills.includes('node.js'));
 
 /* --- RSS parsing utils -------------------------------------------- */
 console.log('RSS utilities');
