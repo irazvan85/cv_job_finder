@@ -10,7 +10,7 @@ import { parseEuropassCv, parseJson, parsePlainText } from '../src/europass/pars
 import { extractSkillTokens } from '../src/matching/skills.js';
 import { scoreJob, rankJobs } from '../src/matching/scorer.js';
 import { searchAllProviders } from '../src/providers/index.js';
-import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor } from '../src/providers/util.js';
+import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor, parseRssItems, rssDate } from '../src/providers/util.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -75,6 +75,38 @@ check('keywordTerms include role tokens', terms.includes('developer') || terms.i
 check('matchesAnyTerm finds a term', matchesAnyTerm('Senior React Developer wanted', ['react']));
 check('matchesAnyTerm rejects when none match', !matchesAnyTerm('Pastry chef position', ['react', 'python']));
 check('matchesAnyTerm true on empty terms', matchesAnyTerm('anything', []));
+
+/* --- RSS parsing utils -------------------------------------------- */
+console.log('RSS utilities');
+const sampleRss = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:ejobs="https://www.ejobs.ro">
+  <channel>
+    <title>eJobs.ro</title>
+    <item>
+      <title>Senior React Developer</title>
+      <link>https://www.ejobs.ro/user/locuri-de-munca/senior-react-developer/123</link>
+      <description>React, TypeScript, Node.js required. Full remote.</description>
+      <pubDate>Mon, 01 Jan 2024 10:00:00 +0200</pubDate>
+      <ejobs:companyName>Acme SRL</ejobs:companyName>
+      <ejobs:city>Cluj-Napoca</ejobs:city>
+      <ejobs:salary>5000-7000 RON</ejobs:salary>
+    </item>
+    <item>
+      <title>Junior Data Analyst</title>
+      <link>https://www.ejobs.ro/user/locuri-de-munca/junior-data-analyst/456</link>
+      <description>SQL, Excel, Power BI knowledge required.</description>
+      <pubDate>Tue, 02 Jan 2024 09:00:00 +0200</pubDate>
+      <ejobs:companyName>DataCo SA</ejobs:companyName>
+      <ejobs:city>Bucharest</ejobs:city>
+    </item>
+  </channel>
+</rss>`;
+const rssItems = parseRssItems(sampleRss);
+check('parseRssItems returns array', Array.isArray(rssItems) && rssItems.length === 2);
+check('rss title parsed', String(rssItems[0].title || '').includes('React'));
+check('rss namespace stripped (ejobs:city → city)', !!rssItems[0].city || !!rssItems[0].companyName);
+check('rssDate parses RFC 2822', rssDate('Mon, 01 Jan 2024 10:00:00 +0200') === '2024-01-01');
+check('rssDate returns empty on bad input', rssDate('') === '');
 
 /* --- Market selection --------------------------------------------- */
 console.log('Market selection');
@@ -162,7 +194,7 @@ await new Promise((resolve) => {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/api/providers`);
       const list = await res.json();
-      check('GET /api/providers returns 200 JSON', res.status === 200 && Array.isArray(list) && list.length === 6, `status ${res.status}`);
+      check('GET /api/providers returns 200 JSON', res.status === 200 && Array.isArray(list) && list.length === 9, `status ${res.status}`);
 
       const fd = new FormData();
       fd.append('cv', new Blob([xmlBuffer], { type: 'application/xml' }), 'cv.xml');

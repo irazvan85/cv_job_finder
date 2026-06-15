@@ -1,9 +1,63 @@
 /** Shared helpers for job providers. */
 
+import { XMLParser } from 'fast-xml-parser';
+
 // Providers run in parallel, so the slowest one bounds the request.
 // Keep it comfortably inside the serverless maxDuration (30s on Vercel,
 // see vercel.json) with headroom for parsing and scoring.
 const DEFAULT_TIMEOUT_MS = 9000;
+
+/**
+ * fetch with a timeout; throws on non-2xx. Returns raw text.
+ * Used for RSS/XML feeds.
+ */
+export async function fetchText(url, options = {}) {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...init } = options;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        accept: 'application/rss+xml, application/xml, text/xml, */*',
+        'user-agent': 'europass-job-matcher/1.0',
+        ...(init.headers || {}),
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} from ${new URL(url).host}`);
+    return await res.text();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const _rssParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  removeNSPrefix: true,  // strips e.g. <ejobs:city> → city
+  trimValues: true,
+});
+
+/**
+ * Parse an RSS 2.0 feed and return the list of <item> objects.
+ * Namespace prefixes are stripped so custom fields like
+ * <ejobs:city> appear as plain `city`.
+ * @param {string} xmlText
+ * @returns {object[]}
+ */
+export function parseRssItems(xmlText) {
+  const doc = _rssParser.parse(xmlText);
+  const channel = (doc.rss && doc.rss.channel) || {};
+  const raw = channel.item || [];
+  return Array.isArray(raw) ? raw : [raw];
+}
+
+/** Coerce an RSS <pubDate> string (RFC 2822) to YYYY-MM-DD. */
+export function rssDate(pubDate) {
+  if (!pubDate) return '';
+  try { return new Date(String(pubDate)).toISOString().slice(0, 10); } catch { return ''; }
+}
 
 /**
  * fetch with a timeout and JSON parsing; throws on non-2xx.
