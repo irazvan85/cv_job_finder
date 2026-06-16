@@ -18,7 +18,7 @@ const DOMAIN_SKILLS = {
     'flask', 'fastapi', 'spring', 'spring boot', '.net', 'laravel', 'symfony',
     'rails', 'flutter', 'react native', 'jquery', 'tailwind', 'bootstrap',
     'oop', 'design patterns', 'unit testing', 'integration testing', 'selenium',
-    'cypress', 'playwright', 'rest', 'graphql', 'microservices', 'tdd',
+    'cypress', 'playwright', 'robot framework', 'cmake', 'rest', 'graphql', 'microservices', 'tdd',
   ],
   'Data & AI': [
     'tensorflow', 'pytorch', 'pandas', 'numpy', 'scikit-learn', 'matlab',
@@ -29,7 +29,8 @@ const DOMAIN_SKILLS = {
   'Cloud & DevOps': [
     'docker', 'kubernetes', 'terraform', 'ansible', 'aws', 'azure', 'gcp',
     'linux', 'git', 'ci/cd', 'jenkins', 'gitlab', 'github actions', 'grafana',
-    'prometheus', 'devops', 'postgresql', 'mysql', 'mongodb', 'redis',
+    'prometheus', 'kibana', 'nexus', 'artifactory', 'vagrant', 'bitbucket',
+    'devops', 'postgresql', 'mysql', 'mongodb', 'redis',
     'elasticsearch', 'kafka', 'rabbitmq',
   ],
   'Project & Product Management': [
@@ -40,7 +41,7 @@ const DOMAIN_SKILLS = {
     'autocad', 'solidworks', 'catia', 'plc', 'scada', 'embedded systems',
     'electronics', 'mechanical engineering', 'electrical engineering',
     'civil engineering', 'lean manufacturing', 'six sigma', 'quality assurance',
-    'iso 9001', 'cad', 'revit',
+    'iso 9001', 'cad', 'revit', 'autosar', 'canoe',
   ],
   'Sales, Marketing & Business': [
     'crm', 'salesforce', 'sap', 'erp', 'procurement', 'supply chain', 'logistics',

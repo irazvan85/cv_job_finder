@@ -203,6 +203,58 @@ const textProfile = parsePlainText('Curriculum Vitae\nWork Experience\nSoftware 
 check('text job title found', textProfile.jobTitles.includes('Software Engineer'));
 check('text skills found', textProfile.skills.includes('java') && textProfile.skills.includes('docker'));
 
+/* --- Europass plain-text PDF layout -------------------------------- */
+console.log('Europass plain-text PDF layout');
+// Mirrors what pdf-parse produces for an official Europass PDF that has
+// no embedded XML/JSON attachment. U+00A0 is intentionally used in the
+// "Mother tongue(s)" line to match real PDF output.
+const EURO_PLAINTEXT = [
+  'John Smith',
+  'Date of birth: 01/01/1985 | Nationality: Romanian | Gender: Male',
+  'Phone: (+40) 721111222 (Mobile) | Address: Str. Test, 1, Timisoara, Romania (Home)',
+  '',
+  'WORK EXPERIENCE',
+  '',
+  '01/01/2020 - CURRENT  -  Timisoara, Romania',
+  'DEVOPS ENGINEEREXAMPLECORP',
+  '• Build and manage CI/CD pipelines using Docker and Kubernetes',
+  '',
+  '01/06/2015 - 31/12/2019  -  Bucharest, Romania',
+  'SOFTWARE ENGINEERTECH SOLUTIONS',
+  '• Developed backend services using Java and Spring Boot',
+  '',
+  'EDUCATION & TRAINING',
+  '',
+  '01/10/2004 - 30/06/2008  -  Cluj-Napoca, Romania',
+  'Bachelor of Computer Science- Polytechnic University of Timisoara',
+  '',
+  'LANGUAGE SKILLS',
+  '',
+  'Mother tongue(s): Romanian',
+  '',
+  'ENGLISH C1 C1 C1 C1 C1',
+].join('\n');
+
+const euroPlainProfile = parsePlainText(EURO_PLAINTEXT);
+
+check('euro plain-text: name detected', euroPlainProfile.name === 'John Smith', euroPlainProfile.name);
+check('euro plain-text: phone extracted', euroPlainProfile.phone === '+40721111222', euroPlainProfile.phone);
+check('euro plain-text: city extracted', euroPlainProfile.location.city === 'Timisoara', euroPlainProfile.location.city);
+check('euro plain-text: country extracted', euroPlainProfile.location.country === 'Romania', euroPlainProfile.location.country);
+check('euro plain-text: 2 work entries parsed', euroPlainProfile.experience.length === 2, `got ${euroPlainProfile.experience.length}`);
+check('euro plain-text: current job to=present', euroPlainProfile.experience[0].to === 'present', euroPlainProfile.experience[0].to);
+check('euro plain-text: DEVOPS position split', euroPlainProfile.experience[0].position === 'DEVOPS ENGINEER', euroPlainProfile.experience[0].position);
+check('euro plain-text: employer split from position', euroPlainProfile.experience[0].employer === 'EXAMPLECORP', euroPlainProfile.experience[0].employer);
+check('euro plain-text: experience years > 0', euroPlainProfile.totalExperienceYears > 0, `got ${euroPlainProfile.totalExperienceYears}`);
+check('euro plain-text: seniority is senior', euroPlainProfile.seniority === 'senior', euroPlainProfile.seniority);
+check('euro plain-text: education entry parsed', euroPlainProfile.education.length === 1, `got ${euroPlainProfile.education.length}`);
+check('euro plain-text: education title parsed', /bachelor/i.test(euroPlainProfile.education[0]?.title), euroPlainProfile.education[0]?.title);
+check('euro plain-text: native language detected', euroPlainProfile.languages.some((l) => l.level === 'native'), JSON.stringify(euroPlainProfile.languages));
+check('euro plain-text: mother tongue is Romanian', euroPlainProfile.languages.some((l) => /romanian/i.test(l.name) && l.level === 'native'), JSON.stringify(euroPlainProfile.languages));
+check('euro plain-text: CEFR language detected (English C1)', euroPlainProfile.languages.some((l) => /english/i.test(l.name) && l.level === 'C1'), JSON.stringify(euroPlainProfile.languages));
+check('euro plain-text: docker skill extracted', euroPlainProfile.skills.includes('docker'), JSON.stringify(euroPlainProfile.skills));
+check('euro plain-text: kubernetes skill extracted', euroPlainProfile.skills.includes('kubernetes'), JSON.stringify(euroPlainProfile.skills));
+
 /* --- CV analysis & job-area recommendations ------------------------- */
 console.log('CV analysis & job-area recommendations');
 const cvAnalysis = analyseCv(profile);

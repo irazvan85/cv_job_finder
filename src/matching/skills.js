@@ -26,19 +26,20 @@ const SKILL_DICTIONARY = [
   'postgresql', 'mysql', 'mongodb', 'redis', 'elasticsearch', 'kafka', 'rabbitmq',
   'docker', 'kubernetes', 'terraform', 'ansible', 'aws', 'azure', 'gcp',
   'linux', 'git', 'ci/cd', 'jenkins', 'gitlab', 'github actions', 'grafana',
-  'prometheus', 'spark', 'hadoop', 'airflow', 'dbt', 'snowflake', 'databricks',
+  'prometheus', 'kibana', 'nexus', 'artifactory', 'vagrant', 'bitbucket',
+  'spark', 'hadoop', 'airflow', 'dbt', 'snowflake', 'databricks',
   'data engineering', 'data analysis', 'machine learning', 'deep learning',
   'nlp', 'computer vision', 'etl', 'big data', 'data science', 'power bi',
   'tableau', 'excel',
   // Methods & practice
   'agile', 'scrum', 'kanban', 'devops', 'tdd', 'rest', 'graphql', 'microservices',
   'oop', 'design patterns', 'unit testing', 'integration testing', 'selenium',
-  'cypress', 'playwright', 'jira', 'confluence',
+  'cypress', 'playwright', 'robot framework', 'cmake', 'jira', 'confluence',
   // Engineering & industry
   'autocad', 'solidworks', 'catia', 'plc', 'scada', 'embedded systems',
   'electronics', 'mechanical engineering', 'electrical engineering',
   'civil engineering', 'lean manufacturing', 'six sigma', 'quality assurance',
-  'iso 9001', 'cad', 'revit',
+  'iso 9001', 'cad', 'revit', 'autosar', 'canoe',
   // Business & management
   'project management', 'product management', 'business analysis', 'stakeholder management',
   'budgeting', 'forecasting', 'crm', 'salesforce', 'sap', 'erp', 'procurement',
