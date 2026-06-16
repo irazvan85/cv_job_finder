@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { parseEuropassCv, parseJson, parsePlainText } from '../src/europass/parser.js';
 import { extractSkillTokens } from '../src/matching/skills.js';
 import { scoreJob, rankJobs } from '../src/matching/scorer.js';
+import { analyseCv } from '../src/matching/jobAreas.js';
 import { searchAllProviders } from '../src/providers/index.js';
 import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor, parseRssItems, rssDate } from '../src/providers/util.js';
 import {
@@ -202,6 +203,32 @@ const textProfile = parsePlainText('Curriculum Vitae\nWork Experience\nSoftware 
 check('text job title found', textProfile.jobTitles.includes('Software Engineer'));
 check('text skills found', textProfile.skills.includes('java') && textProfile.skills.includes('docker'));
 
+/* --- CV analysis & job-area recommendations ------------------------- */
+console.log('CV analysis & job-area recommendations');
+const cvAnalysis = analyseCv(profile);
+check('summary reflects experience years', cvAnalysis.summary.totalExperienceYears === profile.totalExperienceYears);
+check('summary reflects seniority', cvAnalysis.summary.seniority === profile.seniority);
+check('summary reflects skill count', cvAnalysis.summary.skillCount === profile.skills.length);
+check('strengths is non-empty for a skills-rich CV', cvAnalysis.strengths.length > 0, JSON.stringify(cvAnalysis.strengths));
+check('strengths entries carry a domain', cvAnalysis.strengths.every((s) => typeof s.domain === 'string' && s.domain.length > 0));
+check('recommends Software Engineering for a React/Node/K8s dev CV', cvAnalysis.recommendedAreas.some((a) => a.domain === 'Software Engineering'), JSON.stringify(cvAnalysis.recommendedAreas.map((a) => a.domain)));
+check('recommended areas capped at 4', cvAnalysis.recommendedAreas.length <= 4);
+check('recommended areas sorted by score desc', cvAnalysis.recommendedAreas.every((a, i, arr) => i === 0 || arr[i - 1].score >= a.score));
+check('each recommended area has example titles or matched skills', cvAnalysis.recommendedAreas.every((a) => a.exampleTitles.length > 0 || a.matchedSkills.length > 0));
+check('no gaps flagged for a complete CV', cvAnalysis.gaps.length === 0, JSON.stringify(cvAnalysis.gaps));
+
+const sparseProfile = parsePlainText('John Doe\njohn@example.com');
+const sparseAnalysis = analyseCv(sparseProfile);
+check('sparse CV flags few skills', sparseAnalysis.gaps.some((g) => /few skills/i.test(g)));
+check('sparse CV flags no languages', sparseAnalysis.gaps.some((g) => /language/i.test(g)));
+check('sparse CV flags no headline', sparseAnalysis.gaps.some((g) => /headline/i.test(g)));
+check('sparse CV flags no experience', sparseAnalysis.gaps.some((g) => /experience/i.test(g)));
+check('sparse CV yields no recommendations', sparseAnalysis.recommendedAreas.length === 0);
+
+const nurseProfile = parsePlainText('Jane Nurse\nWork Experience\nRegistered Nurse\nSkills\nnursing, patient care');
+const nurseAnalysis = analyseCv(nurseProfile);
+check('healthcare title+skills recommend Healthcare & Education', nurseAnalysis.recommendedAreas[0]?.domain === 'Healthcare & Education', JSON.stringify(nurseAnalysis.recommendedAreas));
+
 /* --- End-to-end demo pipeline -------------------------------------- */
 console.log('End-to-end (demo mode)');
 const { jobs, providerStatus } = await searchAllProviders(profile, { demoMode: true });
@@ -234,6 +261,7 @@ await new Promise((resolve) => {
       const res2 = await fetch(`http://127.0.0.1:${port}/api/match`, { method: 'POST', body: fd });
       const data = await res2.json();
       check('POST /api/match (demo) returns ranked jobs', res2.status === 200 && data.jobs.length >= 10, `status ${res2.status}`);
+      check('POST /api/match includes CV analysis', !!(data.analysis && Array.isArray(data.analysis.recommendedAreas)), JSON.stringify(data.analysis));
 
       // Two-step flow: parse, then search the parsed (and tweakable) profile.
       const fdParse = new FormData();
@@ -241,6 +269,7 @@ await new Promise((resolve) => {
       const resParse = await fetch(`http://127.0.0.1:${port}/api/parse`, { method: 'POST', body: fdParse });
       const parsed = await resParse.json();
       check('POST /api/parse returns a profile only', resParse.status === 200 && parsed.profile && !parsed.jobs, `status ${resParse.status}`);
+      check('POST /api/parse includes CV analysis', !!(parsed.analysis && Array.isArray(parsed.analysis.recommendedAreas)), JSON.stringify(parsed.analysis));
 
       const resSearch = await fetch(`http://127.0.0.1:${port}/api/search`, {
         method: 'POST',

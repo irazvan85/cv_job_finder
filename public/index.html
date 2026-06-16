@@ -69,6 +69,20 @@
   .filterbar .range-val { color: var(--text); font-weight: 700; }
   .hidden { display: none; }
   .spinner { color: var(--muted); }
+  .analysis-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+  .analysis-grid .col { flex: 1 1 280px; }
+  .gap-list { margin: 0; padding-left: 18px; color: var(--med); font-size: 13.5px; }
+  .gap-list li { margin-bottom: 6px; }
+  .area-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .area-card h3 { margin: 0 0 4px; font-size: 14.5px; color: var(--accent); }
+  .area-card p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+  .area-card .titles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .title-pill { background: #1e293b; border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; }
+  .title-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .summary-stats { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 14px; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; min-width: 110px; }
+  .stat .n { font-size: 20px; font-weight: 700; }
+  .stat .l { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -84,6 +98,21 @@
       <span class="spinner hidden" id="spinner">Working…</span>
     </form>
     <div class="error hidden" id="error"></div>
+  </div>
+
+  <div class="panel hidden" id="analysisPanel">
+    <h2>CV analysis &amp; recommended job areas</h2>
+    <div class="summary-stats" id="analysisStats"></div>
+    <div class="analysis-grid">
+      <div class="col">
+        <h2 style="font-size:14px;color:var(--muted);">Suggestions to improve your CV</h2>
+        <ul class="gap-list" id="analysisGaps"></ul>
+      </div>
+      <div class="col" style="flex: 2 1 480px;">
+        <h2 style="font-size:14px;color:var(--muted);">Recommended job areas</h2>
+        <div id="analysisAreas"></div>
+      </div>
+    </div>
   </div>
 
   <div class="panel hidden" id="profilePanel">
@@ -193,6 +222,7 @@ const COLUMNS = [
 ];
 
 let profile = null;       // editable profile from /api/parse
+let analysis = null;       // CV analysis + job-area recommendations from /api/parse
 let editSkills = [];       // working copy of profile.skills
 let jobs = [];             // ranked jobs from /api/search
 let sortKey = 'hiringChance';
@@ -219,8 +249,10 @@ $('form').addEventListener('submit', async (e) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Request failed');
     profile = data.profile;
+    analysis = data.analysis || null;
     editSkills = [...profile.skills];
     $('resultsPanel').classList.add('hidden');
+    renderAnalysis();
     renderRefine();
   } catch (err) {
     showError(err.message);
@@ -246,6 +278,41 @@ function renderRefine() {
   renderCountryOptions(p);
   renderSkillChips();
   $('providerStatus').innerHTML = '';
+}
+
+/* ---- CV analysis & job-area recommendations ----------------------- */
+function renderAnalysis() {
+  if (!analysis) { $('analysisPanel').classList.add('hidden'); return; }
+  $('analysisPanel').classList.remove('hidden');
+
+  const s = analysis.summary;
+  $('analysisStats').innerHTML = [
+    [s.totalExperienceYears, 'years experience'],
+    [s.seniority, 'seniority'],
+    [s.skillCount, 'skills detected'],
+    [s.languageCount, 'languages'],
+    [s.jobTitleCount, 'past job titles'],
+  ].map(([n, l]) => '<div class="stat"><div class="n">' + esc(n) + '</div><div class="l">' + esc(l) + '</div></div>').join('');
+
+  $('analysisGaps').innerHTML = analysis.gaps.length
+    ? analysis.gaps.map((g) => '<li>' + esc(g) + '</li>').join('')
+    : '<li style="color:var(--high)">No major gaps detected — your CV looks complete.</li>';
+
+  $('analysisAreas').innerHTML = analysis.recommendedAreas.length
+    ? analysis.recommendedAreas.map((a) =>
+        '<div class="area-card">' +
+          '<h3>' + esc(a.domain) + '</h3>' +
+          '<p>' + esc(a.rationale) + '</p>' +
+          (a.exampleTitles.length
+            ? '<div class="titles">' + a.exampleTitles.map((t) =>
+                '<button type="button" class="title-pill" data-title="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>'
+            : '') +
+        '</div>').join('')
+    : '<p style="color:var(--muted)">Not enough information in the CV to recommend a job area.</p>';
+
+  for (const pill of $('analysisAreas').querySelectorAll('.title-pill')) {
+    pill.onclick = () => { $('kw').value = pill.dataset.title; $('kw').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+  }
 }
 
 function defaultKeywords(p) {

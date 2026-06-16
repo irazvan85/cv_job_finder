@@ -3,11 +3,16 @@
  * Vercel serverless function (api/index.js).
  *
  * Routes:
- *   POST /api/parse      multipart upload field "cv" → { profile }
+ *   POST /api/parse      multipart upload field "cv" → { profile, analysis }
  *   POST /api/search     JSON { profile, filters, demo } → { jobs, ... }
  *   POST /api/match      multipart "cv" (+ optional "demo=1") — parse+search
  *                        in one call (kept for backward compatibility)
  *   GET  /api/providers  provider list with configuration status
+ *
+ * "analysis" (src/matching/jobAreas.js) is a deterministic CV analysis:
+ * detected strengths grouped by domain, CV completeness gaps, and ranked
+ * job-area recommendations with example titles — derived purely from the
+ * skills/titles already extracted by the parser, no external calls.
  *
  * The two-step parse/search split lets the UI show the parsed profile and
  * let the user refine the search (keywords, skills, target countries)
@@ -19,6 +24,7 @@ import multer from 'multer';
 import { parseEuropassCv } from './europass/parser.js';
 import { searchAllProviders, ALL_PROVIDERS } from './providers/index.js';
 import { rankJobs } from './matching/scorer.js';
+import { analyseCv } from './matching/jobAreas.js';
 
 // Vercel rejects request bodies over ~4.5 MB before they reach the
 // function, so a larger multer limit would never be exercised there.
@@ -58,7 +64,7 @@ export function createApp() {
           profile,
         });
       }
-      res.json({ profile });
+      res.json({ profile, analysis: analyseCv(profile) });
     } catch (err) {
       res.status(500).json({ error: `Failed to process CV: ${err.message}` });
     }
@@ -99,7 +105,7 @@ export function createApp() {
       const demoMode = req.body.demo === '1' || process.env.DEMO === '1';
       const { jobs, providerStatus } = await searchAllProviders(profile, { demoMode });
       const ranked = rankJobs(profile, jobs);
-      res.json({ profile, jobs: ranked, providerStatus, demoMode });
+      res.json({ profile, analysis: analyseCv(profile), jobs: ranked, providerStatus, demoMode });
     } catch (err) {
       res.status(500).json({ error: `Failed to process CV: ${err.message}` });
     }
