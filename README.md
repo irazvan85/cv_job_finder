@@ -94,6 +94,33 @@ This layer is keyed off diacritics-folded text and Romanian terms don't collide
 with English words, so it never changes the result for an English CV or ad. Try
 **Demo mode** — two Romanian-language vacancies are included in the sample set.
 
+### Romanian job market context (2026)
+
+A few data points that shaped the skill dictionary and Romania-specific
+handling above, gathered from current market research:
+
+- **Tighter market** — postings fell roughly a third while applicants per role
+  doubled year over year; registered unemployment was 3.24% (April 2026,
+  ANOFM). Acute skill shortages persist for installers, electricians,
+  welders, mechanics, and accountants even as overall hiring cools
+  (eJobs/BestJobs market data, Q1 2026).
+- **In-demand skills** — data analysis, applied AI, cybersecurity, process
+  automation, and CRM/ERP tools (SAP, Salesforce) lead technical demand;
+  adaptability and customer orientation lead soft-skill demand (EURES, Dec 2025).
+- **Two-speed sectors** — IT/software and automotive manufacturing saw
+  layoffs and contraction in 2025–2026, while Cluj's shared-services/BPO
+  sector and finance-compliance roles (tied to EU regulation) kept growing.
+- **Job board landscape** — eJobs, BestJobs, and Hipo (all integrated here)
+  remain the leading Romania-specific boards; no other Romanian board
+  exposes a free public API or RSS feed for third-party integration. EURES
+  is the only official, documented public API among all sources covering
+  Romanian vacancies.
+- **Remote work** — only ~1.3% of Romanian employees usually work from home
+  (Eurostat, 2025), among the lowest in the EU, even though most who search
+  for remote roles say they would take one from a foreign employer. Romania
+  turned net migrant-destination in 2024, with most new arrivals being
+  returning Romanians.
+
 ## Estimated hiring chance
 
 A transparent, explainable heuristic (not a prediction model). Five signals,
