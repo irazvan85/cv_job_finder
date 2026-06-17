@@ -35,6 +35,20 @@ days", **remote only**, and **starred only**. Star (★) any job to bookmark it;
 bookmarks persist in your browser's local storage. CSV export reflects whatever
 is currently filtered into view.
 
+## Most in-demand jobs by city
+
+A market-research panel that needs **no CV**: type a city (and optionally a
+country to target the right boards) and get the **top in-demand roles there**,
+aggregated across every available platform and ranked by how many vacancies
+each role has. Every board is queried with the city as the search term, the
+results are filtered to that city (diacritics-folded, so `Timișoara` and
+`Timisoara` match), then grouped by a **canonical job title** — seniority
+words (`Senior`/`Junior`), parenthetical tech (`(TypeScript/React)`), gender
+tags (`(m/f/d)`) and trailing qualifiers are stripped so `Senior Software
+Engineer` and `Software Engineer (Java)` count towards the same role. Each
+ranked role shows its vacancy count and share, the hiring companies, the
+sources, and how many of the openings are remote (`src/matching/demand.js`).
+
 ## Supported CV formats
 
 | Format | Notes |
@@ -218,6 +232,14 @@ curl -X POST -H 'content-type: application/json' \
 
 All search endpoints return `{ profile, jobs (ranked), providerStatus }`. Set
 `searchKeywords` on the profile to override the search term.
+
+Most in-demand roles in a city (no CV needed):
+
+```bash
+curl -X POST -H 'content-type: application/json' \
+     -d '{"city": "Timisoara", "country": "ro"}' \
+     https://<host>/api/demand     # → { city, demand: { totalConsidered, roles }, providerStatus }
+```
 
 ## Tests
 

@@ -10,6 +10,7 @@ import { parseEuropassCv, parseJson, parsePlainText } from '../src/europass/pars
 import { extractSkillTokens } from '../src/matching/skills.js';
 import { scoreJob, rankJobs } from '../src/matching/scorer.js';
 import { analyseCv } from '../src/matching/jobAreas.js';
+import { topDemandedJobs, canonicalRole } from '../src/matching/demand.js';
 import { searchAllProviders } from '../src/providers/index.js';
 import { keywordsFromProfile, keywordTerms, matchesAnyTerm, marketsFor, parseRssItems, rssDate } from '../src/providers/util.js';
 import {
@@ -281,6 +282,36 @@ const nurseProfile = parsePlainText('Jane Nurse\nWork Experience\nRegistered Nur
 const nurseAnalysis = analyseCv(nurseProfile);
 check('healthcare title+skills recommend Healthcare & Education', nurseAnalysis.recommendedAreas[0]?.domain === 'Healthcare & Education', JSON.stringify(nurseAnalysis.recommendedAreas));
 
+/* --- In-demand jobs by city ---------------------------------------- */
+console.log('In-demand jobs by city');
+check('canonicalRole strips seniority', canonicalRole('Senior Software Engineer') === 'software engineer', canonicalRole('Senior Software Engineer'));
+check('canonicalRole strips parenthetical tech', canonicalRole('Software Engineer (TypeScript/React)') === 'software engineer', canonicalRole('Software Engineer (TypeScript/React)'));
+check('canonicalRole strips gender tag', canonicalRole('Data Analyst (m/f/d)') === 'data analyst', canonicalRole('Data Analyst (m/f/d)'));
+check('canonicalRole strips trailing qualifier', canonicalRole('DevOps Engineer - Remote') === 'devops engineer', canonicalRole('DevOps Engineer - Remote'));
+check('canonicalRole drops empty title', canonicalRole('') === '');
+
+const demandJobs = [
+  { title: 'Senior Software Engineer', company: 'Acme', location: 'Timișoara, Romania', country: 'ro', remote: false, source: 'EURES', url: 'https://e/1' },
+  { title: 'Software Engineer (Java)', company: 'Beta', location: 'Timisoara, RO', country: 'ro', remote: true, source: 'eJobs', url: 'https://e/2' },
+  { title: 'Junior Software Engineer', company: 'Gamma', location: 'Timișoara', country: 'ro', remote: false, source: 'BestJobs', url: '' },
+  { title: 'Data Analyst (m/f/d)', company: 'Delta', location: 'Timișoara, Romania', country: 'ro', remote: false, source: 'EURES', url: 'https://e/4' },
+  { title: 'Mechanical Engineer', company: 'Epsilon', location: 'Cluj-Napoca, Romania', country: 'ro', remote: false, source: 'EURES', url: 'https://e/5' },
+];
+const demand = topDemandedJobs(demandJobs, { city: 'Timisoara', limit: 10 });
+check('demand filters by city (excludes Cluj)', demand.totalConsidered === 4, `got ${demand.totalConsidered}`);
+check('demand top role is Software Engineer', demand.roles[0].title === 'Software Engineer', JSON.stringify(demand.roles[0]));
+check('demand groups seniority variants', demand.roles[0].count === 3, `got ${demand.roles[0].count}`);
+check('demand reports share %', demand.roles[0].share === 75, `got ${demand.roles[0].share}`);
+check('demand counts remote vacancies', demand.roles[0].remoteCount === 1, `got ${demand.roles[0].remoteCount}`);
+check('demand lists hiring companies', demand.roles[0].companies.includes('Acme') && demand.roles[0].companies.includes('Beta'));
+check('demand lists sources', demand.roles[0].sources.includes('EURES'));
+check('demand picks a sample url', demand.roles[0].sampleUrl === 'https://e/1', demand.roles[0].sampleUrl);
+check('demand ranks by count desc', demand.roles.every((r, i, a) => i === 0 || a[i - 1].count >= r.count));
+check('demand diacritics-folded city match (Timișoara ≡ Timisoara)', demand.roles.some((r) => r.title === 'Data Analyst'));
+const demandAll = topDemandedJobs(demandJobs, { city: '', limit: 2 });
+check('demand without city aggregates all', demandAll.totalConsidered === 5, `got ${demandAll.totalConsidered}`);
+check('demand respects limit', demandAll.roles.length === 2, `got ${demandAll.roles.length}`);
+
 /* --- End-to-end demo pipeline -------------------------------------- */
 console.log('End-to-end (demo mode)');
 const { jobs, providerStatus } = await searchAllProviders(profile, { demoMode: true });
@@ -337,6 +368,23 @@ await new Promise((resolve) => {
         body: JSON.stringify({ filters: {} }),
       });
       check('POST /api/search without profile returns 400', resBad.status === 400, `status ${resBad.status}`);
+
+      const resDemand = await fetch(`http://127.0.0.1:${port}/api/demand`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ city: 'Berlin', country: 'de', demo: true }),
+      });
+      const demandData = await resDemand.json();
+      check('POST /api/demand (demo) returns ranked roles',
+        resDemand.status === 200 && demandData.demand && Array.isArray(demandData.demand.roles) && demandData.demand.roles.length >= 1,
+        `status ${resDemand.status} ${JSON.stringify(demandData.demand)}`);
+
+      const resDemandBad = await fetch(`http://127.0.0.1:${port}/api/demand`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ demo: true }),
+      });
+      check('POST /api/demand without city returns 400', resDemandBad.status === 400, `status ${resDemandBad.status}`);
 
       const fd3 = new FormData();
       fd3.append('cv', new Blob([new Uint8Array(5 * 1024 * 1024)]), 'big.xml');
