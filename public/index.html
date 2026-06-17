@@ -95,6 +95,17 @@
   .cv-entry .what { font-weight: 600; }
   .cv-entry .where { color: var(--muted); }
   .cv-entry p { margin: 6px 0 0; color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
+  .demand-list { display: flex; flex-direction: column; gap: 8px; }
+  .demand-row { display: flex; align-items: center; gap: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .demand-row .rank { font-size: 18px; font-weight: 700; color: var(--muted); min-width: 28px; text-align: center; }
+  .demand-row .main { flex: 1 1 auto; min-width: 0; }
+  .demand-row .role { font-weight: 700; }
+  .demand-row .meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .demand-row .count { text-align: right; white-space: nowrap; }
+  .demand-row .count .n { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .demand-row .count .l { color: var(--muted); font-size: 12px; }
+  .demand-bar { height: 5px; border-radius: 3px; background: var(--border); margin-top: 6px; overflow: hidden; }
+  .demand-bar > div { height: 100%; background: var(--accent); }
 </style>
 </head>
 <body>
@@ -110,6 +121,25 @@
       <span class="spinner hidden" id="spinner">Working…</span>
     </form>
     <div class="error hidden" id="error"></div>
+  </div>
+
+  <div class="panel" id="demandPanel">
+    <h2>Most in-demand jobs by city</h2>
+    <p class="sub" style="margin-bottom:16px;">See the top roles employers are hiring for in a city right now — aggregated across every available platform and ranked by how many vacancies each role has. No CV needed.</p>
+    <div class="row">
+      <div class="field">
+        <span class="lbl">City</span>
+        <input type="text" id="demandCity" placeholder="e.g. Timișoara" />
+      </div>
+      <div class="field">
+        <span class="lbl">Country (helps target the right boards)</span>
+        <select id="demandCountry"></select>
+      </div>
+      <button type="button" id="demandGo" style="align-self:flex-end;">Show top jobs</button>
+      <span class="spinner hidden" id="demandSpinner">Scanning job platforms…</span>
+    </div>
+    <div class="status" id="demandStatus"></div>
+    <div id="demandResults" class="hidden" style="margin-top:16px;"></div>
   </div>
 
   <div class="panel hidden" id="analysisPanel">
@@ -605,6 +635,76 @@ $('exportCsv').addEventListener('click', () => {
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
+/* ---- Most in-demand jobs by city --------------------------------- */
+$('demandCountry').innerHTML = '<option value="">Any country</option>' +
+  Object.entries(COUNTRIES).map(([code, label]) =>
+    '<option value="' + code + '"' + (code === 'ro' ? ' selected' : '') + '>' + esc(label) + '</option>').join('');
+
+$('demandGo').addEventListener('click', runDemand);
+$('demandCity').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); runDemand(); } });
+
+async function runDemand() {
+  const city = $('demandCity').value.trim();
+  if (!city) { $('demandStatus').innerHTML = '<span class="err">Enter a city first.</span>'; return; }
+  $('demandGo').disabled = true;
+  $('demandSpinner').classList.remove('hidden');
+  $('demandStatus').innerHTML = '';
+  try {
+    const body = { city, country: $('demandCountry').value };
+    if ($('demo').checked) body.demo = true;
+    const res = await fetch('/api/demand', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    renderDemand(data);
+  } catch (err) {
+    $('demandStatus').innerHTML = '<span class="err">' + esc(err.message) + '</span>';
+  } finally {
+    $('demandGo').disabled = false;
+    $('demandSpinner').classList.add('hidden');
+  }
+}
+
+function renderDemand(data) {
+  const d = data.demand || { roles: [], totalConsidered: 0 };
+  $('demandStatus').innerHTML = 'Scanned ' + d.totalConsidered + ' vacanc' + (d.totalConsidered === 1 ? 'y' : 'ies') +
+    ' in ' + esc(data.city) + ' across: ' + data.providerStatus.map((s) => {
+      const cls = s.status === 'ok' ? 'ok' : s.status === 'error' ? 'err' : 'skip';
+      const note = s.status === 'ok' ? s.count : s.status === 'skipped' ? 'no key' : 'unreachable';
+      return '<span class="' + cls + '" title="' + esc(s.detail) + '">' + esc(s.name) + ' (' + note + ')</span>';
+    }).join(' · ');
+
+  const results = $('demandResults');
+  results.classList.remove('hidden');
+  if (!d.roles.length) {
+    results.innerHTML = '<p style="color:var(--muted)">No vacancies found for this city. Try the country selector, a larger nearby city, or tick Demo mode to preview the feature.</p>';
+    return;
+  }
+  const max = d.roles[0].count || 1;
+  results.innerHTML = '<div class="demand-list">' + d.roles.map((r, i) => {
+    const meta = [
+      r.companies.length ? 'Hiring: ' + r.companies.map(esc).join(', ') : '',
+      r.remoteCount ? r.remoteCount + ' remote' : '',
+      r.sources.length ? 'via ' + r.sources.map(esc).join(', ') : '',
+    ].filter(Boolean).join(' · ');
+    const role = r.sampleUrl
+      ? '<a href="' + esc(r.sampleUrl) + '" target="_blank" rel="noopener">' + esc(r.title) + '</a>'
+      : esc(r.title);
+    return '<div class="demand-row">' +
+      '<div class="rank">' + (i + 1) + '</div>' +
+      '<div class="main">' +
+        '<div class="role">' + role + '</div>' +
+        (meta ? '<div class="meta">' + meta + '</div>' : '') +
+        '<div class="demand-bar"><div style="width:' + Math.round((r.count / max) * 100) + '%"></div></div>' +
+      '</div>' +
+      '<div class="count"><div class="n">' + r.count + '</div><div class="l">' + r.share + '% of roles</div></div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
 
 function showError(msg) {
   $('error').textContent = msg;

@@ -7,6 +7,8 @@
  *   POST /api/search     JSON { profile, filters, demo } → { jobs, ... }
  *   POST /api/match      multipart "cv" (+ optional "demo=1") — parse+search
  *                        in one call (kept for backward compatibility)
+ *   POST /api/demand     JSON { city, country, demo } → top in-demand roles
+ *                        in that city across all platforms (no CV needed)
  *   GET  /api/providers  provider list with configuration status
  *
  * "analysis" (src/matching/jobAreas.js) is a deterministic CV analysis:
@@ -25,6 +27,7 @@ import { parseEuropassCv } from './europass/parser.js';
 import { searchAllProviders, ALL_PROVIDERS } from './providers/index.js';
 import { rankJobs } from './matching/scorer.js';
 import { analyseCv } from './matching/jobAreas.js';
+import { topDemandedJobs } from './matching/demand.js';
 
 // Vercel rejects request bodies over ~4.5 MB before they reach the
 // function, so a larger multer limit would never be exercised there.
@@ -111,6 +114,35 @@ export function createApp() {
     }
   });
 
+  // Market insight: the most in-demand roles in a given city, aggregated
+  // across every available platform — no CV required. We query the boards
+  // using the city as the keyword (so each board returns the diverse roles
+  // located there), filter the results to that city, then group the
+  // vacancies by canonical job title and rank them by count.
+  app.post('/api/demand', async (req, res) => {
+    try {
+      const city = str(req.body && req.body.city).trim();
+      if (!city) {
+        return res.status(400).json({ error: 'Missing "city" in request body.' });
+      }
+      const countryCode = str(req.body && req.body.country).toLowerCase().slice(0, 2);
+      const limit = Math.min(25, Math.max(1, Number(req.body && req.body.limit) || 10));
+      const demoMode = req.body.demo === true || req.body.demo === '1' || process.env.DEMO === '1';
+
+      const profile = cityProfile(city, countryCode);
+      const filters = countryCode ? { countries: [countryCode] } : {};
+      const { jobs, providerStatus } = await searchAllProviders(profile, {
+        demoMode,
+        limitPerProvider: 50,
+        filters,
+      });
+      const demand = topDemandedJobs(jobs, { city, limit });
+      res.json({ city, country: countryCode, demand, providerStatus, demoMode });
+    } catch (err) {
+      res.status(500).json({ error: `Demand lookup failed: ${err.message}` });
+    }
+  });
+
   // Multer errors (e.g. file too large) would otherwise fall through to the
   // default HTML error page; keep the API JSON-only.
   app.use((err, _req, res, next) => {
@@ -130,6 +162,30 @@ export function createApp() {
 
 const str = (v) => (v == null ? '' : String(v));
 const arr = (v) => (Array.isArray(v) ? v : []);
+
+/**
+ * A minimal CV-profile-shaped object that steers the providers towards a
+ * city: the city becomes the search keyword (so keyword-driven boards return
+ * the roles located there) and the home market, so country-aware boards
+ * (EURES, Adzuna) query the right country.
+ */
+function cityProfile(city, countryCode) {
+  return {
+    name: '', email: '', phone: '',
+    location: { city, country: '', countryCode: (countryCode || '').toUpperCase() },
+    headline: '',
+    searchKeywords: city,
+    jobTitles: [],
+    skills: [],
+    languages: [],
+    education: [],
+    experience: [],
+    totalExperienceYears: 0,
+    seniority: 'mid',
+    rawText: '',
+    sourceFormat: '',
+  };
+}
 
 /**
  * Coerce a client-supplied profile (from /api/parse, possibly edited in the
