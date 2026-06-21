@@ -338,6 +338,14 @@ await new Promise((resolve) => {
       const list = await res.json();
       check('GET /api/providers returns 200 JSON', res.status === 200 && Array.isArray(list) && list.length === 9, `status ${res.status}`);
 
+      const resRo = await fetch(`http://127.0.0.1:${port}/api/insights/romania`);
+      const roJson = await resRo.json();
+      check('GET /api/insights/romania returns 200', resRo.status === 200, `status ${resRo.status}`);
+      check('Romania insights has city profiles', Array.isArray(roJson.CITY_PROFILES) && roJson.CITY_PROFILES.length >= 5, `got ${roJson.CITY_PROFILES?.length}`);
+      check('Romania insights has sector outlook', Array.isArray(roJson.SECTOR_OUTLOOK) && roJson.SECTOR_OUTLOOK.length >= 10, `got ${roJson.SECTOR_OUTLOOK?.length}`);
+      check('Romania insights has salary benchmarks', Array.isArray(roJson.SALARY_BENCHMARKS) && roJson.SALARY_BENCHMARKS.length >= 10, `got ${roJson.SALARY_BENCHMARKS?.length}`);
+      check('Romania insights has career tips', Array.isArray(roJson.CAREER_TIPS) && roJson.CAREER_TIPS.length >= 5, `got ${roJson.CAREER_TIPS?.length}`);
+
       const fd = new FormData();
       fd.append('cv', new Blob([xmlBuffer], { type: 'application/xml' }), 'cv.xml');
       fd.append('demo', '1');
