@@ -9,6 +9,8 @@
  *                        in one call (kept for backward compatibility)
  *   POST /api/demand     JSON { city, country, demo } → top in-demand roles
  *                        in that city across all platforms (no CV needed)
+ *   GET  /api/insights/romania  Romania job-market insights: city profiles,
+ *                        sector outlook, salary benchmarks, career tips
  *   GET  /api/providers  provider list with configuration status
  *
  * "analysis" (src/matching/jobAreas.js) is a deterministic CV analysis:
@@ -28,6 +30,7 @@ import { searchAllProviders, ALL_PROVIDERS } from './providers/index.js';
 import { rankJobs } from './matching/scorer.js';
 import { analyseCv } from './matching/jobAreas.js';
 import { topDemandedJobs } from './matching/demand.js';
+import roInsights from './insights/romania.js';
 
 // Vercel rejects request bodies over ~4.5 MB before they reach the
 // function, so a larger multer limit would never be exercised there.
@@ -40,6 +43,14 @@ export function createApp() {
     limits: { fileSize: MAX_UPLOAD_BYTES },
   });
   app.use(express.json({ limit: '2mb' }));
+
+  // Static Romania market-insight data (city profiles, sector outlook,
+  // salary benchmarks, career tips). Served as JSON so the client can
+  // render it without re-fetching; the data changes with each research
+  // update to the insights module, not per-request.
+  app.get('/api/insights/romania', (_req, res) => {
+    res.json(roInsights);
+  });
 
   app.get('/api/providers', (_req, res) => {
     res.json(
