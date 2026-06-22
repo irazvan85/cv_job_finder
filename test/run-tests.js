@@ -394,6 +394,13 @@ await new Promise((resolve) => {
       });
       check('POST /api/demand without city returns 400', resDemandBad.status === 400, `status ${resDemandBad.status}`);
 
+      const resRoleInfo = await fetch(`http://127.0.0.1:${port}/api/role-info`);
+      const roleInfoArr = await resRoleInfo.json();
+      check('GET /api/role-info returns 200', resRoleInfo.status === 200, `status ${resRoleInfo.status}`);
+      check('GET /api/role-info returns non-empty array', Array.isArray(roleInfoArr) && roleInfoArr.length >= 20, `got ${roleInfoArr?.length}`);
+      check('role-info entries have required fields', roleInfoArr.every((r) => Array.isArray(r.matches) && r.title && r.summary && Array.isArray(r.tasks)), 'missing fields');
+      check('role-info matches are non-empty strings', roleInfoArr.every((r) => r.matches.every((m) => typeof m === 'string' && m.length > 0)), 'bad match string');
+
       const fd3 = new FormData();
       fd3.append('cv', new Blob([new Uint8Array(5 * 1024 * 1024)]), 'big.xml');
       const res3 = await fetch(`http://127.0.0.1:${port}/api/match`, { method: 'POST', body: fd3 });
