@@ -176,6 +176,19 @@
   .tag-Negotiation { background: #2d2d00; color: #fde047; }
   .priority-high::after { content: " 🔥"; }
   .ins-sources { color: var(--muted); font-size: 11.5px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
+  /* Role tooltip */
+  #roleTooltip {
+    position: fixed; z-index: 200; max-width: 340px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px; pointer-events: none; display: none;
+    box-shadow: 0 8px 32px rgba(0,0,0,.55);
+  }
+  #roleTooltip .rt-title { font-size: 14px; font-weight: 700; color: var(--accent); margin: 0 0 6px; }
+  #roleTooltip .rt-summary { color: var(--muted); font-size: 12.5px; margin: 0 0 8px; line-height: 1.5; }
+  #roleTooltip .rt-tasks { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--text); }
+  #roleTooltip .rt-tasks li { margin-bottom: 3px; }
+  td[data-role] { cursor: default; }
+  .title-pill[data-title] { position: relative; }
 </style>
 </head>
 <body>
@@ -372,6 +385,12 @@
   </div>
 </div>
 
+<div id="roleTooltip" role="tooltip">
+  <p class="rt-title" id="rtTitle"></p>
+  <p class="rt-summary" id="rtSummary"></p>
+  <ul class="rt-tasks" id="rtTasks"></ul>
+</div>
+
 <script>
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const STAR_KEY = 'jobmatcher.starred';
@@ -520,6 +539,64 @@ function renderInsSources() {
 }
 
 loadRoInsights();
+
+/* ---- Role info tooltip -------------------------------------------- */
+let roleInfoCache = null;
+
+async function loadRoleInfo() {
+  try {
+    const res = await fetch('/api/role-info');
+    roleInfoCache = await res.json();
+  } catch (_) { /* tooltip silently unavailable */ }
+}
+
+function normalizeForRoleMatch(title) {
+  return title
+    .toLowerCase()
+    .replace(/\b(senior|sr\.?|junior|jr\.?|lead|principal|staff|head of|chief|associate|mid-?level|mid)\b/g, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/[/|–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findRoleInfo(rawTitle) {
+  if (!roleInfoCache || !rawTitle) return null;
+  const norm = normalizeForRoleMatch(rawTitle);
+  for (const role of roleInfoCache) {
+    const sorted = [...role.matches].sort((a, b) => b.length - a.length);
+    for (const m of sorted) {
+      if (norm.includes(m)) return role;
+    }
+  }
+  return null;
+}
+
+function tooltipShow(anchorEl, rawTitle) {
+  const info = findRoleInfo(rawTitle);
+  if (!info) return;
+  $('rtTitle').textContent = info.title;
+  $('rtSummary').textContent = info.summary;
+  $('rtTasks').innerHTML = info.tasks.map((t) => '<li>' + esc(t) + '</li>').join('');
+  const tip = $('roleTooltip');
+  tip.style.display = 'block';
+  const rect = anchorEl.getBoundingClientRect();
+  const tw = tip.offsetWidth || 340;
+  const th = tip.offsetHeight || 200;
+  let top = rect.bottom + 8;
+  let left = rect.left;
+  if (left + tw > window.innerWidth - 16) left = window.innerWidth - tw - 16;
+  if (left < 8) left = 8;
+  if (top + th > window.innerHeight - 8) top = rect.top - th - 8;
+  tip.style.top = top + 'px';
+  tip.style.left = left + 'px';
+}
+
+function tooltipHide() {
+  $('roleTooltip').style.display = 'none';
+}
+
+loadRoleInfo();
 
 // Countries selectable as search targets (code → label). EURES covers all of
 // these; Adzuna covers a subset and is queried where it overlaps.
@@ -701,6 +778,8 @@ function renderAnalysis() {
 
   for (const pill of $('analysisAreas').querySelectorAll('.title-pill')) {
     pill.onclick = () => { $('kw').value = pill.dataset.title; $('kw').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    pill.addEventListener('mouseenter', () => tooltipShow(pill, pill.dataset.title));
+    pill.addEventListener('mouseleave', tooltipHide);
   }
 }
 
@@ -855,7 +934,7 @@ function renderTable() {
       '<td><button class="star ' + (starred ? 'on' : '') + '" data-key="' + esc(jobKey(j)) + '" title="Save job">' + (starred ? '★' : '☆') + '</button></td>' +
       '<td><span class="chance ' + m.label + '">' + m.hiringChance + '% · ' + m.label + '</span>' +
         '<div class="bar"><div style="width:' + m.hiringChance + '%;background:' + color + '"></div></div></td>' +
-      '<td>' + (j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">' + esc(j.title) + '</a>' : esc(j.title)) + '</td>' +
+      '<td data-role="' + esc(j.title) + '">' + (j.url ? '<a href="' + esc(j.url) + '" target="_blank" rel="noopener">' + esc(j.title) + '</a>' : esc(j.title)) + '</td>' +
       '<td>' + esc(j.company) + '</td>' +
       '<td>' + esc(j.location) + (j.remote ? ' · Remote' : '') + '</td>' +
       '<td>' + esc(j.salary || '—') + '</td>' +
@@ -867,6 +946,10 @@ function renderTable() {
 
   for (const btn of $('body').querySelectorAll('button.star')) {
     btn.onclick = () => { toggleStar(btn.dataset.key); renderTable(); };
+  }
+  for (const td of $('body').querySelectorAll('td[data-role]')) {
+    td.addEventListener('mouseenter', () => tooltipShow(td, td.dataset.role));
+    td.addEventListener('mouseleave', tooltipHide);
   }
 }
 

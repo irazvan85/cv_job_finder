@@ -31,6 +31,7 @@ import { rankJobs } from './matching/scorer.js';
 import { analyseCv } from './matching/jobAreas.js';
 import { topDemandedJobs } from './matching/demand.js';
 import roInsights from './insights/romania.js';
+import ROLES from './insights/roleInfo.js';
 
 // Vercel rejects request bodies over ~4.5 MB before they reach the
 // function, so a larger multer limit would never be exercised there.
@@ -50,6 +51,10 @@ export function createApp() {
   // update to the insights module, not per-request.
   app.get('/api/insights/romania', (_req, res) => {
     res.json(roInsights);
+  });
+
+  app.get('/api/role-info', (_req, res) => {
+    res.json(ROLES);
   });
 
   app.get('/api/providers', (_req, res) => {
