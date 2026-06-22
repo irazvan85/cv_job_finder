@@ -5,19 +5,53 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Europass Job Matcher</title>
 <style>
+  /* ── Design tokens ──────────────────────────────────────────────────── */
   :root {
     --bg: #0f172a; --panel: #1e293b; --border: #334155; --text: #e2e8f0;
     --muted: #94a3b8; --accent: #38bdf8; --high: #4ade80; --med: #facc15; --low: #f87171;
+    --hdr: 52px;
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: var(--bg); color: var(--text); }
-  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
-  h1 { font-size: 26px; margin: 0 0 4px; }
-  h2 { font-size: 16px; margin: 0 0 12px; color: var(--text); }
-  .sub { color: var(--muted); margin: 0 0 24px; }
+
+  /* ── Site header / nav ──────────────────────────────────────────────── */
+  .site-header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    display: flex; align-items: stretch; height: var(--hdr);
+    padding: 0 20px; gap: 0;
+  }
+  .site-logo {
+    font-size: 16px; font-weight: 700; padding: 0 20px 0 0;
+    border-right: 1px solid var(--border); display: flex; align-items: center;
+    gap: 8px; white-space: nowrap; color: var(--text);
+  }
+  .site-logo .accent { color: var(--accent); }
+  .site-nav { display: flex; align-items: stretch; flex: 1; overflow-x: auto; }
+  .nav-tab {
+    background: transparent; color: var(--muted); border: 0;
+    border-bottom: 3px solid transparent; border-radius: 0;
+    padding: 0 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+    white-space: nowrap; transition: color .15s; height: 100%;
+  }
+  .nav-tab:hover { color: var(--text); background: transparent; }
+  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .site-nav-right {
+    display: flex; align-items: center; margin-left: auto;
+    padding-left: 16px; border-left: 1px solid var(--border); flex-shrink: 0;
+  }
+
+  /* ── Page sections ──────────────────────────────────────────────────── */
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 24px 0; }
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+
+  /* ── Common components ──────────────────────────────────────────────── */
+  h2 { font-size: 16px; margin: 0 0 4px; color: var(--text); }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: 13.5px; line-height: 1.55; }
   .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .panel-head { margin-bottom: 18px; }
   .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-  input[type=file] { color: var(--muted); }
   input[type=text] {
     background: var(--bg); color: var(--text); border: 1px solid var(--border);
     border-radius: 8px; padding: 8px 10px; font-size: 14px;
@@ -32,10 +66,62 @@
   }
   button:disabled { opacity: .5; cursor: wait; }
   button.secondary { background: var(--border); color: var(--text); }
-  label.toggle { color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
-  .error { color: var(--low); margin-top: 12px; }
+  button.sm { padding: 7px 14px; font-size: 13px; }
+  label.toggle { color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; font-size: 14px; }
+  .error { color: var(--low); margin-top: 12px; font-size: 13.5px; }
   .field { display: flex; flex-direction: column; gap: 6px; }
-  .field > span.lbl { color: var(--muted); font-size: 13px; }
+  .field > .lbl { color: var(--muted); font-size: 13px; }
+  .status { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .status .ok { color: var(--high); } .status .err { color: var(--low); } .status .skip { color: var(--med); }
+  .hidden { display: none; }
+  .spinner { color: var(--muted); font-size: 13.5px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Step progress bar ──────────────────────────────────────────────── */
+  .steps { display: flex; margin-bottom: 24px; }
+  .step {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border: 1px solid var(--border); background: var(--panel);
+    font-size: 13px; color: var(--muted);
+  }
+  .step:first-child { border-radius: 8px 0 0 8px; }
+  .step:last-child  { border-radius: 0 8px 8px 0; }
+  .step + .step { border-left: 0; }
+  .step.active { background: #0c2a3d; border-color: var(--accent); color: var(--text); }
+  .step.done   { background: #0a2a14; border-color: #2d6a40; color: #86efac; }
+  .step .s-num {
+    width: 22px; height: 22px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+    background: var(--border); color: var(--muted); font-size: 11px; font-weight: 700;
+  }
+  .step.active .s-num { background: var(--accent); color: #082f49; }
+  .step.done   .s-num { background: #2d6a40; color: #fff; }
+  .step .s-label { font-weight: 600; }
+  @media (max-width: 640px) {
+    .steps { flex-direction: column; }
+    .step { border-radius: 0 !important; }
+    .step + .step { border-left: 1px solid var(--border); border-top: 0; }
+    .step:first-child { border-radius: 8px 8px 0 0 !important; }
+    .step:last-child  { border-radius: 0 0 8px 8px !important; }
+  }
+
+  /* ── Upload zone ────────────────────────────────────────────────────── */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: 36px 24px; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s; margin-bottom: 16px;
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(56,189,248,.05); }
+  .upload-zone .uz-icon  { font-size: 38px; margin-bottom: 10px; line-height: 1; }
+  .upload-zone .uz-main  { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+  .upload-zone .uz-hint  { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .upload-zone input[type=file] { display: none; }
+  .uz-filename { color: var(--accent); font-size: 13px; margin-top: 12px; font-weight: 600; }
+  .upload-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+
+  /* ── Refine / profile panel ─────────────────────────────────────────── */
+  .profile-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
   .refine-grid { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
   .refine-grid .field { flex: 1 1 220px; }
   .profile-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -45,15 +131,30 @@
   .add-skill { display: flex; gap: 6px; margin-top: 10px; }
   .add-skill input { flex: 0 1 220px; }
   .add-skill button { padding: 8px 14px; font-size: 13px; }
-  .status { font-size: 13px; color: var(--muted); margin-top: 10px; }
-  .status .ok { color: var(--high); } .status .err { color: var(--low); } .status .skip { color: var(--med); }
+
+  /* ── CV analysis ────────────────────────────────────────────────────── */
+  .summary-stats { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 14px; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; min-width: 110px; }
+  .stat .n { font-size: 20px; font-weight: 700; }
+  .stat .l { color: var(--muted); font-size: 12px; }
+  .analysis-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+  .analysis-grid .col { flex: 1 1 280px; }
+  .gap-list { margin: 0; padding-left: 18px; color: var(--med); font-size: 13.5px; }
+  .gap-list li { margin-bottom: 6px; }
+  .area-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .area-card h3 { margin: 0 0 4px; font-size: 14.5px; color: var(--accent); }
+  .area-card p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+  .area-card .titles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .title-pill { background: #1e293b; border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; }
+  .title-pill:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Results table ──────────────────────────────────────────────────── */
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; cursor: pointer; user-select: none; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+  th { color: var(--muted); font-weight: 600; cursor: pointer; user-select: none;
+       white-space: nowrap; position: sticky; top: var(--hdr); background: var(--panel); }
   th .arrow { font-size: 11px; }
   tr:hover td { background: #24344d; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
   .chance { font-weight: 700; }
   .High { color: var(--high); } .Medium { color: var(--med); } .Low { color: var(--low); }
   .bar { height: 5px; border-radius: 3px; background: var(--border); margin-top: 4px; width: 90px; overflow: hidden; }
@@ -67,22 +168,8 @@
   .filterbar .field { gap: 4px; }
   .filterbar .levels { display: flex; gap: 12px; }
   .filterbar .range-val { color: var(--text); font-weight: 700; }
-  .hidden { display: none; }
-  .spinner { color: var(--muted); }
-  .analysis-grid { display: flex; flex-wrap: wrap; gap: 20px; }
-  .analysis-grid .col { flex: 1 1 280px; }
-  .gap-list { margin: 0; padding-left: 18px; color: var(--med); font-size: 13.5px; }
-  .gap-list li { margin-bottom: 6px; }
-  .area-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
-  .area-card h3 { margin: 0 0 4px; font-size: 14.5px; color: var(--accent); }
-  .area-card p { margin: 4px 0; color: var(--muted); font-size: 13px; }
-  .area-card .titles { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .title-pill { background: #1e293b; border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; cursor: pointer; }
-  .title-pill:hover { border-color: var(--accent); color: var(--accent); }
-  .summary-stats { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 14px; }
-  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; min-width: 110px; }
-  .stat .n { font-size: 20px; font-weight: 700; }
-  .stat .l { color: var(--muted); font-size: 12px; }
+
+  /* ── CV preview modal ───────────────────────────────────────────────── */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 50; }
   .modal-overlay.hidden { display: none; }
   .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; max-width: 720px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 20px 24px; }
@@ -95,6 +182,8 @@
   .cv-entry .what { font-weight: 600; }
   .cv-entry .where { color: var(--muted); }
   .cv-entry p { margin: 6px 0 0; color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
+
+  /* ── City demand ────────────────────────────────────────────────────── */
   .demand-list { display: flex; flex-direction: column; gap: 8px; }
   .demand-row { display: flex; align-items: center; gap: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
   .demand-row .rank { font-size: 18px; font-weight: 700; color: var(--muted); min-width: 28px; text-align: center; }
@@ -106,8 +195,9 @@
   .demand-row .count .l { color: var(--muted); font-size: 12px; }
   .demand-bar { height: 5px; border-radius: 3px; background: var(--border); margin-top: 6px; overflow: hidden; }
   .demand-bar > div { height: 100%; background: var(--accent); }
-  /* Romania market insights */
-  .insights-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+
+  /* ── Romania insights ───────────────────────────────────────────────── */
+  .insights-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
   .ins-tab { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
   .ins-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
   .ins-pane { display: none; } .ins-pane.active { display: block; }
@@ -119,10 +209,10 @@
   .city-card .headline { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
   .city-hiring { display: inline-block; border-radius: 999px; padding: 2px 12px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
   .hiring-very-strong { background: #14532d; color: #4ade80; }
-  .hiring-strong { background: #1a3a1a; color: #86efac; }
-  .hiring-growing { background: #1e3a1e; color: #a3e635; }
-  .hiring-stable { background: #1e293b; color: #94a3b8; }
-  .hiring-mixed { background: #3d2b00; color: #facc15; }
+  .hiring-strong      { background: #1a3a1a; color: #86efac; }
+  .hiring-growing     { background: #1e3a1e; color: #a3e635; }
+  .hiring-stable      { background: #1e293b; color: #94a3b8; }
+  .hiring-mixed       { background: #3d2b00; color: #facc15; }
   .city-sectors { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .sector-tag { background: #0f2942; color: #7dd3fc; border-radius: 999px; padding: 2px 10px; font-size: 12.5px; }
   .city-trends { display: flex; flex-direction: column; gap: 6px; }
@@ -130,26 +220,23 @@
   .trend-icon { font-size: 14px; min-width: 18px; margin-top: 1px; }
   .trend-sector { font-weight: 600; font-size: 13px; }
   .trend-note { color: var(--muted); font-size: 12.5px; }
-  .city-salary { color: var(--muted); font-size: 13px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
-  .city-tip { background: #0c3547; border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: 13px; margin-top: 10px; }
   .employers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
   .employer-tag { background: #1e293b; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 2px 8px; font-size: 12px; }
-  /* Sector outlook */
+  .city-tip { background: #0c3547; border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: 13px; margin-top: 10px; }
   .outlook-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .outlook-table th { color: var(--muted); font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; }
   .outlook-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
   .outlook-table tr:hover td { background: #24344d; }
-  .trend-up { color: var(--high); font-weight: 700; }
-  .trend-stable { color: var(--med); font-weight: 700; }
-  .trend-down { color: var(--low); font-weight: 700; }
+  .trend-up     { color: var(--high); font-weight: 700; }
+  .trend-stable { color: var(--med);  font-weight: 700; }
+  .trend-down   { color: var(--low);  font-weight: 700; }
   .demand-badge { border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; }
-  .badge-critical { background: #450a0a; color: #fca5a5; }
-  .badge-high { background: #1a3d1a; color: #86efac; }
-  .badge-moderate { background: #1a2d3d; color: #7dd3fc; }
-  .badge-balanced { background: #1e293b; color: #94a3b8; }
+  .badge-critical    { background: #450a0a; color: #fca5a5; }
+  .badge-high        { background: #1a3d1a; color: #86efac; }
+  .badge-moderate    { background: #1a2d3d; color: #7dd3fc; }
+  .badge-balanced    { background: #1e293b; color: #94a3b8; }
   .badge-contraction { background: #3d0000; color: #f87171; }
-  .badge-softening { background: #2d1a00; color: #fbbf24; }
-  /* Salary guide */
+  .badge-softening   { background: #2d1a00; color: #fbbf24; }
   .salary-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
   .salary-cat-btn { background: var(--bg); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
   .salary-cat-btn.active { background: #0c4a6e; color: #bae6fd; border-color: var(--accent); }
@@ -158,7 +245,6 @@
   .salary-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
   .salary-table tr:hover td { background: #24344d; }
   .salary-note { color: var(--muted); font-size: 12px; margin-top: 12px; }
-  /* Career tips */
   .tips-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
   .tag-btn { background: var(--bg); border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; }
   .tag-btn.active { background: #0c4a6e; color: #bae6fd; border-color: var(--accent); }
@@ -166,225 +252,294 @@
   .tip-card h4 { margin: 0 0 6px; font-size: 14px; }
   .tip-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
   .tip-tag { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 11.5px; font-weight: 700; margin-right: 8px; }
-  .tag-Language { background: #1a1a4d; color: #a5b4fc; }
-  .tag-Skills { background: #0c3547; color: #7dd3fc; }
-  .tag-Sector { background: #14532d; color: #86efac; }
-  .tag-Remote { background: #3d2b00; color: #fbbf24; }
+  .tag-Language   { background: #1a1a4d; color: #a5b4fc; }
+  .tag-Skills     { background: #0c3547; color: #7dd3fc; }
+  .tag-Sector     { background: #14532d; color: #86efac; }
+  .tag-Remote     { background: #3d2b00; color: #fbbf24; }
   .tag-Automotive { background: #450a0a; color: #fca5a5; }
   .tag-Healthcare { background: #1a2d1a; color: #6ee7b7; }
-  .tag-Salary { background: #2d1a3d; color: #c4b5fd; }
-  .tag-Negotiation { background: #2d2d00; color: #fde047; }
+  .tag-Salary     { background: #2d1a3d; color: #c4b5fd; }
+  .tag-Negotiation{ background: #2d2d00; color: #fde047; }
   .priority-high::after { content: " 🔥"; }
   .ins-sources { color: var(--muted); font-size: 11.5px; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border); }
-  /* Role tooltip */
+
+  /* ── Role tooltip ───────────────────────────────────────────────────── */
   #roleTooltip {
     position: fixed; z-index: 200; max-width: 340px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
     padding: 14px 16px; pointer-events: none; display: none;
     box-shadow: 0 8px 32px rgba(0,0,0,.55);
   }
-  #roleTooltip .rt-title { font-size: 14px; font-weight: 700; color: var(--accent); margin: 0 0 6px; }
+  #roleTooltip .rt-title   { font-size: 14px; font-weight: 700; color: var(--accent); margin: 0 0 6px; }
   #roleTooltip .rt-summary { color: var(--muted); font-size: 12.5px; margin: 0 0 8px; line-height: 1.5; }
-  #roleTooltip .rt-tasks { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--text); }
+  #roleTooltip .rt-tasks   { margin: 0; padding-left: 16px; font-size: 12.5px; color: var(--text); }
   #roleTooltip .rt-tasks li { margin-bottom: 3px; }
   td[data-role] { cursor: default; }
-  .title-pill[data-title] { position: relative; }
+
+  /* ── Footer ─────────────────────────────────────────────────────────── */
+  .site-footer {
+    text-align: center; color: var(--muted); font-size: 12px;
+    padding: 20px 24px 28px; border-top: 1px solid var(--border); margin-top: 8px;
+  }
+  .site-footer a { color: var(--muted); }
+  .site-footer a:hover { color: var(--accent); }
 </style>
 </head>
 <body>
+
+<!-- ── Sticky site header with tab navigation ────────────────────────── -->
+<header class="site-header">
+  <div class="site-logo">📄 <span class="accent">Europass</span> Job Matcher</div>
+  <nav class="site-nav">
+    <button class="nav-tab active" data-page="match">🎯 Match My CV</button>
+    <button class="nav-tab" data-page="demand">📈 City Job Demand</button>
+    <button class="nav-tab" data-page="insights">🇷🇴 RO Market Insights</button>
+  </nav>
+  <div class="site-nav-right">
+    <label class="toggle"><input type="checkbox" id="demo" /> Demo mode</label>
+  </div>
+</header>
+
 <div class="wrap">
-  <h1>Europass Job Matcher</h1>
-  <p class="sub">Upload your Europass CV (XML, JSON, or official PDF — max 4 MB). It is parsed in-process; you can then refine the search before it is matched against vacancies from European job platforms — EURES (all EU/EEA national services), Arbeitnow, Remotive, and optionally Adzuna, Jooble and Reed.</p>
 
-  <div class="panel">
-    <form id="form" class="row">
-      <input type="file" id="cv" name="cv" accept=".xml,.json,.pdf" required />
-      <button type="submit" id="go">Analyse CV</button>
-      <label class="toggle"><input type="checkbox" id="demo" /> Demo mode (offline sample jobs)</label>
-      <span class="spinner hidden" id="spinner">Working…</span>
-    </form>
-    <div class="error hidden" id="error"></div>
-  </div>
+  <!-- ════════════════════════════════════════════════════════════════════
+       PAGE 1 — Match My CV
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="page-section active" id="page-match">
 
-  <div class="panel" id="demandPanel">
-    <h2>Most in-demand jobs by city</h2>
-    <p class="sub" style="margin-bottom:16px;">See the top roles employers are hiring for in a city right now — aggregated across every available platform and ranked by how many vacancies each role has. No CV needed.</p>
-    <div class="row">
-      <div class="field">
-        <span class="lbl">City</span>
-        <input type="text" id="demandCity" placeholder="e.g. Timișoara" />
+    <!-- Progress steps -->
+    <div class="steps" id="stepBar">
+      <div class="step active" id="step1"><div class="s-num">1</div><div class="s-label">Upload CV</div></div>
+      <div class="step" id="step2"><div class="s-num">2</div><div class="s-label">Analyse &amp; Refine</div></div>
+      <div class="step" id="step3"><div class="s-num">3</div><div class="s-label">Find Jobs</div></div>
+      <div class="step" id="step4"><div class="s-num">4</div><div class="s-label">Results</div></div>
+    </div>
+
+    <!-- ── Step 1: Upload ──────────────────────────────────────────────── -->
+    <div class="panel">
+      <div class="upload-zone" id="uploadZone">
+        <div class="uz-icon">📄</div>
+        <div class="uz-main">Drop your Europass CV here</div>
+        <div class="uz-hint">XML, JSON, or official Europass PDF · max 4 MB</div>
+        <button type="button" id="pickFile">Choose file…</button>
+        <input type="file" id="cv" name="cv" accept=".xml,.json,.pdf" />
+        <div class="uz-filename hidden" id="uzFilename"></div>
       </div>
-      <div class="field">
-        <span class="lbl">Country (helps target the right boards)</span>
-        <select id="demandCountry"></select>
+      <div class="upload-actions">
+        <button type="button" id="go" disabled>Analyse CV</button>
+        <span class="spinner hidden" id="spinner">Parsing…</span>
+        <span class="sub" style="margin:0;">Parsed in-process · matched against EURES, Arbeitnow, Remotive and optionally Adzuna, Jooble &amp; Reed.</span>
       </div>
-      <button type="button" id="demandGo" style="align-self:flex-end;">Show top jobs</button>
-      <span class="spinner hidden" id="demandSpinner">Scanning job platforms…</span>
+      <div class="error hidden" id="error"></div>
     </div>
-    <div class="status" id="demandStatus"></div>
-    <div id="demandResults" class="hidden" style="margin-top:16px;"></div>
-  </div>
 
-  <div class="panel" id="roInsightsPanel">
-    <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
-      <div>
-        <h2 style="margin-bottom:2px;">🇷🇴 Romania Job Market Insights 2026</h2>
-        <p class="sub" style="margin-bottom:0;">City profiles, sector outlook, salary benchmarks, and career tips — sourced from eJobs, BestJobs, ABSL, INS, Cedefop, EY and the Foreign Investors Council.</p>
+    <!-- ── Step 2a: CV analysis (appears after parse) ──────────────────── -->
+    <div class="panel hidden" id="analysisPanel">
+      <div class="panel-head">
+        <h2>CV Analysis &amp; Recommended Job Areas</h2>
+        <p class="sub">Key stats from your CV, suggestions to improve it, and the job areas that best match your background. Hover a role title to see what the role involves.</p>
+      </div>
+      <div class="summary-stats" id="analysisStats"></div>
+      <div class="analysis-grid">
+        <div class="col">
+          <p style="color:var(--muted);font-size:13px;font-weight:600;margin:0 0 10px;">Suggestions to improve your CV</p>
+          <ul class="gap-list" id="analysisGaps"></ul>
+        </div>
+        <div class="col" style="flex: 2 1 480px;">
+          <p style="color:var(--muted);font-size:13px;font-weight:600;margin:0 0 10px;">Recommended job areas</p>
+          <div id="analysisAreas"></div>
+        </div>
       </div>
     </div>
 
-    <div class="insights-tabs">
-      <button class="ins-tab active" data-pane="cities">🏙️ City Profiles</button>
-      <button class="ins-tab" data-pane="sectors">📊 Sector Outlook</button>
-      <button class="ins-tab" data-pane="salaries">💰 Salary Guide</button>
-      <button class="ins-tab" data-pane="tips">💡 Career Tips</button>
+    <!-- ── Step 2b: Refine search ──────────────────────────────────────── -->
+    <div class="panel hidden" id="profilePanel">
+      <div class="profile-row">
+        <div>
+          <strong id="profileName"></strong>
+          <span id="profileMeta" style="color:var(--muted);font-size:13px;display:block;margin-top:2px;"></span>
+        </div>
+        <button type="button" id="previewCv" class="secondary sm">Preview parsed CV</button>
+      </div>
+      <div class="refine-grid">
+        <div class="field">
+          <span class="lbl">Search keywords (role or terms to search for)</span>
+          <input type="text" id="kw" placeholder="e.g. Full Stack Developer" />
+        </div>
+        <div class="field">
+          <span class="lbl">Target countries (leave empty to search home market + Europe)</span>
+          <select id="countries" multiple size="6"></select>
+        </div>
+      </div>
+      <div class="field" style="margin-top:18px;">
+        <span class="lbl">Skills for matching — remove or add to tune results</span>
+        <div class="profile-chips" id="profileSkills"></div>
+      </div>
+      <div class="add-skill">
+        <input type="text" id="newSkill" placeholder="Add a skill…" />
+        <button type="button" id="addSkill" class="secondary">Add</button>
+      </div>
+      <div class="row" style="margin-top:18px;">
+        <button type="button" id="search">Find matching jobs</button>
+        <span class="spinner hidden" id="searchSpinner">Searching European job platforms…</span>
+      </div>
+      <div class="status" id="providerStatus"></div>
     </div>
 
-    <!-- City Profiles -->
-    <div class="ins-pane active" id="ins-cities">
-      <div class="city-tabs" id="cityTabs"></div>
-      <div id="cityCard"></div>
-    </div>
-
-    <!-- Sector Outlook -->
-    <div class="ins-pane" id="ins-sectors">
-      <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">Vacancy trend direction based on eJobs/BestJobs Q1–Q2 2026 data and ABSL/Cedefop forward-looking reports. 🔥 = currently most under-supplied.</p>
-      <div style="overflow-x:auto;">
-        <table class="outlook-table" id="sectorTable">
-          <thead><tr><th>Sector</th><th>Trend</th><th>Demand level</th><th>What to know</th></tr></thead>
-          <tbody id="sectorBody"></tbody>
+    <!-- ── Step 3 / 4: Results ─────────────────────────────────────────── -->
+    <div class="panel hidden" id="resultsPanel">
+      <div class="filterbar">
+        <div class="field">
+          <span class="lbl">Min hiring chance: <span class="range-val" id="minChanceVal">0%</span></span>
+          <input type="range" id="minChance" min="0" max="100" step="5" value="0" />
+        </div>
+        <div class="field">
+          <span class="lbl">Match level</span>
+          <div class="levels" style="display:flex;gap:12px;">
+            <label class="toggle"><input type="checkbox" class="lvl" value="High" checked /> High</label>
+            <label class="toggle"><input type="checkbox" class="lvl" value="Medium" checked /> Medium</label>
+            <label class="toggle"><input type="checkbox" class="lvl" value="Low" checked /> Low</label>
+          </div>
+        </div>
+        <div class="field">
+          <span class="lbl">Country</span>
+          <select id="countryFilter"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <span class="lbl">Posted within</span>
+          <select id="recency">
+            <option value="0">Any time</option>
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="lbl">Show</span>
+          <div style="display:flex;gap:12px;">
+            <label class="toggle"><input type="checkbox" id="remoteOnly" /> Remote only</label>
+            <label class="toggle"><input type="checkbox" id="starredOnly" /> Starred only</label>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <strong id="resultCount"></strong>
+        <button id="exportCsv" type="button">Export CSV</button>
+      </div>
+      <div style="overflow-x:auto; max-height:70vh; overflow-y:auto;">
+        <table id="results">
+          <thead><tr id="headRow"></tr></thead>
+          <tbody id="body"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- Salary Guide -->
-    <div class="ins-pane" id="ins-salaries">
-      <p style="color:var(--muted);font-size:13px;margin-bottom:12px;">Net monthly salary ranges in RON. Upper end = Bucharest/Cluj; lower end = Iași/Craiova. Sources: INS Feb 2026, BestJobs market report Q1 2026.</p>
-      <div class="salary-cats" id="salaryCats"></div>
-      <div style="overflow-x:auto;">
-        <table class="salary-table" id="salaryTable">
-          <thead><tr><th>Role</th><th>Junior</th><th>Mid-level</th><th>Senior</th></tr></thead>
-          <tbody id="salaryBody"></tbody>
-        </table>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       PAGE 2 — City Job Demand
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="page-section" id="page-demand">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Most In-Demand Jobs by City</h2>
+        <p class="sub">See the top roles employers are actively hiring for in any European city right now — aggregated across every available job platform and ranked by vacancy count. No CV needed.</p>
       </div>
-      <p class="salary-note">* All figures are <strong>net/month in RON</strong>. Divide by ~5 for EUR equivalent. IT professionals benefit from additional tax exemptions on net income. Gross ≈ net × 1.52 for most brackets.</p>
-    </div>
-
-    <!-- Career Tips -->
-    <div class="ins-pane" id="ins-tips">
-      <div class="tips-filter" id="tipsFilter"></div>
-      <div id="tipsList"></div>
-    </div>
-
-    <div class="ins-sources" id="insSources"></div>
-  </div>
-
-  <div class="panel hidden" id="analysisPanel">
-    <h2>CV analysis &amp; recommended job areas</h2>
-    <div class="summary-stats" id="analysisStats"></div>
-    <div class="analysis-grid">
-      <div class="col">
-        <h2 style="font-size:14px;color:var(--muted);">Suggestions to improve your CV</h2>
-        <ul class="gap-list" id="analysisGaps"></ul>
+      <div class="row">
+        <div class="field">
+          <span class="lbl">City</span>
+          <input type="text" id="demandCity" placeholder="e.g. Timișoara" />
+        </div>
+        <div class="field">
+          <span class="lbl">Country (helps target the right boards)</span>
+          <select id="demandCountry"></select>
+        </div>
+        <button type="button" id="demandGo" style="align-self:flex-end;">Show top jobs</button>
+        <span class="spinner hidden" id="demandSpinner">Scanning job platforms…</span>
       </div>
-      <div class="col" style="flex: 2 1 480px;">
-        <h2 style="font-size:14px;color:var(--muted);">Recommended job areas</h2>
-        <div id="analysisAreas"></div>
+      <div class="status" id="demandStatus"></div>
+      <div id="demandResults" class="hidden" style="margin-top:16px;"></div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       PAGE 3 — Romania Market Insights
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="page-section" id="page-insights">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>🇷🇴 Romania Job Market Insights 2026</h2>
+        <p class="sub">City profiles, sector outlook, salary benchmarks, and career tips — sourced from eJobs, BestJobs, ABSL, INS, Cedefop, EY and the Foreign Investors Council.</p>
       </div>
-    </div>
-  </div>
 
-  <div class="panel hidden" id="profilePanel">
-    <div class="row" style="justify-content:space-between;">
-      <div><strong id="profileName"></strong> <span id="profileMeta" style="color:var(--muted)"></span></div>
-      <button type="button" id="previewCv" class="secondary" style="padding:7px 14px;font-size:13px;">Preview parsed CV</button>
-    </div>
-
-    <div class="refine-grid" style="margin-top:18px;">
-      <div class="field">
-        <span class="lbl">Search keywords (role or terms to search for)</span>
-        <input type="text" id="kw" placeholder="e.g. Full Stack Developer" />
+      <div class="insights-tabs">
+        <button class="ins-tab active" data-pane="cities">🏙️ City Profiles</button>
+        <button class="ins-tab" data-pane="sectors">📊 Sector Outlook</button>
+        <button class="ins-tab" data-pane="salaries">💰 Salary Guide</button>
+        <button class="ins-tab" data-pane="tips">💡 Career Tips</button>
       </div>
-      <div class="field">
-        <span class="lbl">Target countries (leave empty to search your home market + Europe)</span>
-        <select id="countries" multiple size="6"></select>
+
+      <!-- City Profiles -->
+      <div class="ins-pane active" id="ins-cities">
+        <div class="city-tabs" id="cityTabs"></div>
+        <div id="cityCard"></div>
       </div>
-    </div>
 
-    <div class="field" style="margin-top:18px;">
-      <span class="lbl">Skills used for matching (remove or add to tune your results)</span>
-      <div class="profile-chips" id="profileSkills"></div>
-    </div>
-    <div class="add-skill">
-      <input type="text" id="newSkill" placeholder="Add a skill…" />
-      <button type="button" id="addSkill" class="secondary">Add</button>
-    </div>
-
-    <div class="row" style="margin-top:18px;">
-      <button type="button" id="search">Find matching jobs</button>
-      <span class="spinner hidden" id="searchSpinner">Searching European job platforms…</span>
-    </div>
-    <div class="status" id="providerStatus"></div>
-  </div>
-
-  <div class="panel hidden" id="resultsPanel">
-    <div class="filterbar">
-      <div class="field">
-        <span class="lbl">Min hiring chance: <span class="range-val" id="minChanceVal">0%</span></span>
-        <input type="range" id="minChance" min="0" max="100" step="5" value="0" />
-      </div>
-      <div class="field">
-        <span class="lbl">Match level</span>
-        <div class="levels">
-          <label class="toggle"><input type="checkbox" class="lvl" value="High" checked /> High</label>
-          <label class="toggle"><input type="checkbox" class="lvl" value="Medium" checked /> Medium</label>
-          <label class="toggle"><input type="checkbox" class="lvl" value="Low" checked /> Low</label>
+      <!-- Sector Outlook -->
+      <div class="ins-pane" id="ins-sectors">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:14px;">Vacancy trend direction based on eJobs/BestJobs Q1–Q2 2026 data and ABSL/Cedefop forward-looking reports. 🔥 = currently most under-supplied.</p>
+        <div style="overflow-x:auto;">
+          <table class="outlook-table" id="sectorTable">
+            <thead><tr><th>Sector</th><th>Trend</th><th>Demand level</th><th>What to know</th></tr></thead>
+            <tbody id="sectorBody"></tbody>
+          </table>
         </div>
       </div>
-      <div class="field">
-        <span class="lbl">Country</span>
-        <select id="countryFilter"><option value="">All</option></select>
-      </div>
-      <div class="field">
-        <span class="lbl">Posted within</span>
-        <select id="recency">
-          <option value="0">Any time</option>
-          <option value="7">Last 7 days</option>
-          <option value="14">Last 14 days</option>
-          <option value="30">Last 30 days</option>
-        </select>
-      </div>
-      <div class="field">
-        <span class="lbl">Show</span>
-        <div class="levels">
-          <label class="toggle"><input type="checkbox" id="remoteOnly" /> Remote only</label>
-          <label class="toggle"><input type="checkbox" id="starredOnly" /> Starred only</label>
-        </div>
-      </div>
-    </div>
-    <div class="toolbar">
-      <strong id="resultCount"></strong>
-      <button id="exportCsv" type="button">Export CSV</button>
-    </div>
-    <div style="overflow-x:auto; max-height: 70vh; overflow-y: auto;">
-      <table id="results">
-        <thead><tr id="headRow"></tr></thead>
-        <tbody id="body"></tbody>
-      </table>
-    </div>
-  </div>
 
-  <div class="modal-overlay hidden" id="cvModalOverlay">
-    <div class="modal">
-      <div class="modal-head">
-        <h2 style="margin:0;">Parsed CV preview</h2>
-        <button type="button" class="secondary" id="closeCvModal" style="padding:6px 12px;font-size:13px;">Close</button>
+      <!-- Salary Guide -->
+      <div class="ins-pane" id="ins-salaries">
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px;">Net monthly salary ranges in RON. Upper end = Bucharest/Cluj; lower end = Iași/Craiova. Sources: INS Feb 2026, BestJobs market report Q1 2026.</p>
+        <div class="salary-cats" id="salaryCats"></div>
+        <div style="overflow-x:auto;">
+          <table class="salary-table" id="salaryTable">
+            <thead><tr><th>Role</th><th>Junior</th><th>Mid-level</th><th>Senior</th></tr></thead>
+            <tbody id="salaryBody"></tbody>
+          </table>
+        </div>
+        <p class="salary-note">* All figures are <strong>net/month in RON</strong>. Divide by ~5 for EUR equivalent. IT professionals benefit from additional tax exemptions. Gross ≈ net × 1.52 for most brackets.</p>
       </div>
-      <div class="modal-body" id="cvModalBody"></div>
+
+      <!-- Career Tips -->
+      <div class="ins-pane" id="ins-tips">
+        <div class="tips-filter" id="tipsFilter"></div>
+        <div id="tipsList"></div>
+      </div>
+
+      <div class="ins-sources" id="insSources"></div>
     </div>
+  </section>
+
+</div><!-- /.wrap -->
+
+<!-- ── Site footer ───────────────────────────────────────────────────── -->
+<footer class="site-footer">
+  Job data: EURES · Arbeitnow · Remotive · Adzuna · Jooble · Reed ·
+  Romania insights: eJobs · BestJobs · ABSL · INS · Cedefop · EY · FIC ·
+  <a href="https://europa.eu/europass/en" target="_blank" rel="noopener">About Europass</a>
+</footer>
+
+<!-- CV preview modal -->
+<div class="modal-overlay hidden" id="cvModalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 style="margin:0;">Parsed CV preview</h2>
+      <button type="button" class="secondary sm" id="closeCvModal">Close</button>
+    </div>
+    <div class="modal-body" id="cvModalBody"></div>
   </div>
 </div>
 
+<!-- Role tooltip -->
 <div id="roleTooltip" role="tooltip">
   <p class="rt-title" id="rtTitle"></p>
   <p class="rt-summary" id="rtSummary"></p>
@@ -394,8 +549,74 @@
 <script>
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const STAR_KEY = 'jobmatcher.starred';
+const $ = (id) => document.getElementById(id);
 
-/* ---- Romania Market Insights -------------------------------------- */
+/* ── Page navigation (hash-based) ──────────────────────────────────── */
+function navigate(hash) {
+  const page = (hash || '').replace('#', '') || 'match';
+  for (const tab of document.querySelectorAll('.nav-tab')) {
+    const active = tab.dataset.page === page;
+    tab.classList.toggle('active', active);
+  }
+  for (const sec of document.querySelectorAll('.page-section')) {
+    sec.classList.toggle('active', sec.id === 'page-' + page);
+  }
+}
+
+for (const tab of document.querySelectorAll('.nav-tab')) {
+  tab.addEventListener('click', () => {
+    history.replaceState(null, '', '#' + tab.dataset.page);
+    navigate(tab.dataset.page);
+  });
+}
+window.addEventListener('hashchange', () => navigate(location.hash));
+navigate(location.hash);
+
+/* ── Step indicator ────────────────────────────────────────────────── */
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = $('step' + i);
+    el.classList.remove('active', 'done');
+    if (i < n)      el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  }
+}
+setStep(1);
+
+/* ── Upload zone ───────────────────────────────────────────────────── */
+const uploadZone = $('uploadZone');
+const cvInput = $('cv');
+
+$('pickFile').addEventListener('click', () => cvInput.click());
+
+function onFileSelected(file) {
+  if (!file) return;
+  // Swap the DataTransfer into the input if file came from drag-and-drop
+  if (cvInput.files[0] !== file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    cvInput.files = dt.files;
+  }
+  $('uzFilename').textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
+  $('uzFilename').classList.remove('hidden');
+  $('go').disabled = false;
+}
+
+cvInput.addEventListener('change', () => { if (cvInput.files[0]) onFileSelected(cvInput.files[0]); });
+
+uploadZone.addEventListener('click', (e) => {
+  if (e.target !== $('pickFile')) cvInput.click();
+});
+uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) onFileSelected(file);
+});
+
+/* ── Romania Market Insights ───────────────────────────────────────── */
 let roData = null;
 let activeSalaryCat = null;
 let activeTipTag = 'All';
@@ -406,7 +627,7 @@ async function loadRoInsights() {
     roData = await res.json();
     renderRoInsights();
   } catch (e) {
-    $('roInsightsPanel').innerHTML += '<p style="color:var(--low)">Could not load insights: ' + esc(e.message) + '</p>';
+    $('page-insights').innerHTML += '<p style="color:var(--low);padding:0 24px;">Could not load insights: ' + esc(e.message) + '</p>';
   }
 }
 
@@ -460,15 +681,13 @@ function renderCityCard(i) {
     '<span class="city-hiring ' + hiringCls + '">' + esc(c.hiring.toUpperCase()) + '</span>' +
     '<div style="margin-bottom:10px;"><span style="color:var(--muted);font-size:12px;">Mid-level net salary: </span>' +
     '<strong>' + esc(c.midLevelNetRON) + ' RON/mo</strong>' +
-    '<span style="color:var(--muted);font-size:12px;margin-left:8px;">vs national avg: ' + esc(c.salaryIndexVsNational) + '</span>' +
-    '</div>' +
+    '<span style="color:var(--muted);font-size:12px;margin-left:8px;">vs national avg: ' + esc(c.salaryIndexVsNational) + '</span></div>' +
     '<div class="city-sectors">' + c.topSectors.map((s) => '<span class="sector-tag">' + esc(s) + '</span>').join('') + '</div>' +
     '<div class="city-trends">' + c.trends.map((t) =>
       '<div class="trend-row">' +
       '<span class="trend-icon ' + TREND_CSS[t.trend] + '">' + TREND_ICONS[t.trend] + '</span>' +
       '<div><div class="trend-sector">' + esc(t.sector) + '</div>' +
-      '<div class="trend-note">' + esc(t.note) + '</div></div>' +
-      '</div>'
+      '<div class="trend-note">' + esc(t.note) + '</div></div></div>'
     ).join('') + '</div>' +
     '<div class="employers">Key employers: ' + c.keyEmployers.map((e) => '<span class="employer-tag">' + esc(e) + '</span>').join('') + '</div>' +
     '<div class="city-tip">💡 ' + esc(c.tip) + '</div>' +
@@ -526,9 +745,7 @@ function renderTips(tag) {
     '<div class="tip-card">' +
     '<h4 class="priority-' + esc(t.priority) + '">' +
     '<span class="tip-tag tag-' + esc(t.tag) + '">' + esc(t.tag) + '</span>' + esc(t.title) +
-    '</h4>' +
-    '<p>' + esc(t.body) + '</p>' +
-    '</div>'
+    '</h4><p>' + esc(t.body) + '</p></div>'
   ).join('');
 }
 
@@ -540,7 +757,7 @@ function renderInsSources() {
 
 loadRoInsights();
 
-/* ---- Role info tooltip -------------------------------------------- */
+/* ── Role info tooltip ─────────────────────────────────────────────── */
 let roleInfoCache = null;
 
 async function loadRoleInfo() {
@@ -592,14 +809,11 @@ function tooltipShow(anchorEl, rawTitle) {
   tip.style.left = left + 'px';
 }
 
-function tooltipHide() {
-  $('roleTooltip').style.display = 'none';
-}
+function tooltipHide() { $('roleTooltip').style.display = 'none'; }
 
 loadRoleInfo();
 
-// Countries selectable as search targets (code → label). EURES covers all of
-// these; Adzuna covers a subset and is queried where it overlaps.
+/* ── Country data ──────────────────────────────────────────────────── */
 const COUNTRIES = {
   at: 'Austria', be: 'Belgium', bg: 'Bulgaria', hr: 'Croatia', cy: 'Cyprus',
   cz: 'Czechia', dk: 'Denmark', ee: 'Estonia', fi: 'Finland', fr: 'France',
@@ -610,6 +824,7 @@ const COUNTRIES = {
   gb: 'United Kingdom',
 };
 
+/* ── Results table columns ─────────────────────────────────────────── */
 const COLUMNS = [
   { key: 'star',         label: '★',              sort: (j) => (isStarred(j) ? 0 : 1) },
   { key: 'hiringChance', label: 'Hiring chance',  sort: (j) => j.match.hiringChance },
@@ -622,19 +837,16 @@ const COLUMNS = [
   { key: 'matchedSkills',label: 'Matched skills', sort: (j) => j.match.matchedSkills.length },
 ];
 
-let profile = null;       // editable profile from /api/parse
-let analysis = null;       // CV analysis + job-area recommendations from /api/parse
-let editSkills = [];       // working copy of profile.skills
-let jobs = [];             // ranked jobs from /api/search
+let profile = null;
+let analysis = null;
+let editSkills = [];
+let jobs = [];
 let sortKey = 'hiringChance';
 let sortDir = -1;
 
-const $ = (id) => document.getElementById(id);
-
-/* ---- Step 1: analyse the uploaded CV ----------------------------- */
-$('form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const file = $('cv').files[0];
+/* ── Step 1: Parse the uploaded CV ────────────────────────────────── */
+$('go').addEventListener('click', async () => {
+  const file = cvInput.files[0];
   if (!file) return;
   $('error').classList.add('hidden');
   if (file.size > MAX_UPLOAD_BYTES) {
@@ -655,15 +867,17 @@ $('form').addEventListener('submit', async (e) => {
     $('resultsPanel').classList.add('hidden');
     renderAnalysis();
     renderRefine();
+    setStep(2);
+    $('analysisPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     showError(err.message);
-  } finally {
     $('go').disabled = false;
+  } finally {
     $('spinner').classList.add('hidden');
   }
 });
 
-/* ---- Refine panel ------------------------------------------------ */
+/* ── Refine panel ──────────────────────────────────────────────────── */
 function renderRefine() {
   const p = profile;
   $('profilePanel').classList.remove('hidden');
@@ -674,14 +888,13 @@ function renderRefine() {
     p.totalExperienceYears ? p.totalExperienceYears + ' yrs experience (' + p.seniority + ')' : '',
     p.languages.map((l) => l.name + (l.level ? ' ' + l.level : '')).join(', '),
   ].filter(Boolean).join(' · ');
-
   $('kw').value = defaultKeywords(p);
   renderCountryOptions(p);
   renderSkillChips();
   $('providerStatus').innerHTML = '';
 }
 
-/* ---- Parsed CV preview (modal) ------------------------------------ */
+/* ── CV preview modal ──────────────────────────────────────────────── */
 $('previewCv').addEventListener('click', () => {
   if (!profile) return;
   $('cvModalBody').innerHTML = renderCvPreviewHtml(profile, editSkills);
@@ -725,15 +938,13 @@ function renderCvPreviewHtml(p, skills) {
     : '<p style="color:var(--muted)">No skills detected.</p>';
 
   return (
-    '<div class="cv-section">' +
-      '<h3>Profile</h3>' +
+    '<div class="cv-section"><h3>Profile</h3>' +
       '<div class="cv-entry">' +
         '<div class="what">' + esc(p.name || 'Unnamed') + '</div>' +
         (p.headline ? '<div class="where">' + esc(p.headline) + '</div>' : '') +
         (contact ? '<div class="when">' + esc(contact) + '</div>' : '') +
         '<p>' + esc(p.totalExperienceYears || 0) + ' years of experience · ' + esc(p.seniority) + ' seniority</p>' +
-      '</div>' +
-    '</div>' +
+      '</div></div>' +
     '<div class="cv-section"><h3>Work experience</h3>' + experienceHtml + '</div>' +
     '<div class="cv-section"><h3>Education</h3>' + educationHtml + '</div>' +
     '<div class="cv-section"><h3>Languages</h3>' + languagesHtml + '</div>' +
@@ -746,7 +957,7 @@ function formatPeriod(from, to) {
   return (from || '?') + ' – ' + (to === 'present' ? 'present' : to || '?');
 }
 
-/* ---- CV analysis & job-area recommendations ----------------------- */
+/* ── CV analysis ───────────────────────────────────────────────────── */
 function renderAnalysis() {
   if (!analysis) { $('analysisPanel').classList.add('hidden'); return; }
   $('analysisPanel').classList.remove('hidden');
@@ -774,7 +985,7 @@ function renderAnalysis() {
                 '<button type="button" class="title-pill" data-title="' + esc(t) + '">' + esc(t) + '</button>').join('') + '</div>'
             : '') +
         '</div>').join('')
-    : '<p style="color:var(--muted)">Not enough information in the CV to recommend a job area.</p>';
+    : '<p style="color:var(--muted)">Not enough information to recommend a job area.</p>';
 
   for (const pill of $('analysisAreas').querySelectorAll('.title-pill')) {
     pill.onclick = () => { $('kw').value = pill.dataset.title; $('kw').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
@@ -817,21 +1028,16 @@ function addSkillFromInput() {
   $('newSkill').value = '';
 }
 
-/* ---- Step 2: search with the refined profile --------------------- */
+/* ── Step 2: Search with refined profile ──────────────────────────── */
 $('search').addEventListener('click', async () => {
   if (!profile) return;
   $('error').classList.add('hidden');
   $('search').disabled = true;
   $('searchSpinner').classList.remove('hidden');
+  setStep(3);
   try {
-    const refined = {
-      ...profile,
-      searchKeywords: $('kw').value.trim(),
-      skills: editSkills,
-    };
-    const filters = {
-      countries: [...$('countries').selectedOptions].map((o) => o.value),
-    };
+    const refined = { ...profile, searchKeywords: $('kw').value.trim(), skills: editSkills };
+    const filters = { countries: [...$('countries').selectedOptions].map((o) => o.value) };
     const body = { profile: refined, filters };
     if ($('demo').checked) body.demo = true;
     const res = await fetch('/api/search', {
@@ -845,9 +1051,11 @@ $('search').addEventListener('click', async () => {
     renderProviderStatus(data);
     buildCountryFilter();
     renderTable();
+    setStep(4);
     $('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     showError(err.message);
+    setStep(2);
   } finally {
     $('search').disabled = false;
     $('searchSpinner').classList.add('hidden');
@@ -862,7 +1070,7 @@ function renderProviderStatus(data) {
   }).join(' · ');
 }
 
-/* ---- Results filters --------------------------------------------- */
+/* ── Results filters ───────────────────────────────────────────────── */
 function buildCountryFilter() {
   const codes = [...new Set(jobs.map((j) => (j.country || '').toLowerCase()).filter(Boolean))].sort();
   $('countryFilter').innerHTML = '<option value="">All</option>' +
@@ -897,11 +1105,11 @@ function visibleJobs() {
   });
 }
 
-/* ---- Results table ----------------------------------------------- */
+/* ── Results table ─────────────────────────────────────────────────── */
 function renderTable() {
   $('resultsPanel').classList.remove('hidden');
-  const $minChanceVal = $('minChanceVal');
-  if ($minChanceVal) $minChanceVal.textContent = $('minChance').value + '%';
+  const $mcv = $('minChanceVal');
+  if ($mcv) $mcv.textContent = $('minChance').value + '%';
 
   const shown = visibleJobs();
   $('resultCount').textContent =
@@ -953,7 +1161,7 @@ function renderTable() {
   }
 }
 
-/* ---- Bookmarks (localStorage) ------------------------------------ */
+/* ── Bookmarks (localStorage) ──────────────────────────────────────── */
 function jobKey(j) { return j.url || j.id || (j.title + '::' + j.company); }
 function loadStarred() {
   try { return new Set(JSON.parse(localStorage.getItem(STAR_KEY) || '[]')); }
@@ -969,7 +1177,7 @@ function toggleStar(key) {
   saveStarred(set);
 }
 
-/* ---- CSV export (of the currently visible rows) ------------------ */
+/* ── CSV export ────────────────────────────────────────────────────── */
 $('exportCsv').addEventListener('click', () => {
   const header = ['Hiring chance %', 'Label', 'Job title', 'Company', 'Location', 'Remote', 'Salary', 'Posted', 'Source', 'Matched skills', 'Starred', 'URL'];
   const rows = visibleJobs().map((j) => [
@@ -980,7 +1188,7 @@ $('exportCsv').addEventListener('click', () => {
   const csv = [header, ...rows]
     .map((r) => r.map((v) => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(','))
     .join('\r\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'job-matches.csv';
@@ -988,7 +1196,7 @@ $('exportCsv').addEventListener('click', () => {
   URL.revokeObjectURL(a.href);
 });
 
-/* ---- Most in-demand jobs by city --------------------------------- */
+/* ── City demand page ──────────────────────────────────────────────── */
 $('demandCountry').innerHTML = '<option value="">Any country</option>' +
   Object.entries(COUNTRIES).map(([code, label]) =>
     '<option value="' + code + '"' + (code === 'ro' ? ' selected' : '') + '>' + esc(label) + '</option>').join('');
@@ -1058,6 +1266,7 @@ function renderDemand(data) {
   }).join('') + '</div>';
 }
 
+/* ── Utilities ─────────────────────────────────────────────────────── */
 function showError(msg) {
   $('error').textContent = msg;
   $('error').classList.remove('hidden');
